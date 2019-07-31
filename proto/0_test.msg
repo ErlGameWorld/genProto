@@ -22,3 +22,210 @@ addressBook {
     list[person] person;
 	list[person] other;
 }
+
+union{
+    string test;
+    int32 type;
+}
+
+tbool{
+    bool bool;
+}
+
+tint8{
+    int8 int1;
+    int8 int2;
+}
+
+tuint8{
+    uint8 int1;
+    uint8 int2;
+}
+
+tint16{
+    int16 int1;
+    int16 int2;
+}
+
+tuint16{
+    uint16 int1;
+    uint16 int2;
+}
+
+tint32{
+    int32 int1;
+    int32 int2;
+}
+
+tuint32{
+    uint32 int1;
+    uint32 int2;
+}
+
+tint64{
+    int64 int1;
+    int64 int2;
+}
+
+tuint64{
+    uint64 int1;
+    uint64 int2;
+}
+
+tinteger{
+    integer int1;
+    integer int2;
+    integer int3;
+    integer int4;
+    integer int5;
+    integer int6;
+    integer int7;
+    integer int8;
+}
+
+tnumber{
+    number int1;
+    number int2;
+    number int3;
+    number int4;
+    number int5;
+    number int6;
+    number int7;
+    number int8;
+    number float1;
+    number float2;
+}
+
+tfloat{
+    float int1;
+    float int2;
+}
+
+tdouble{
+    double int1;
+    double int2;
+}
+
+tstring{
+    string int1;
+    string int2;
+}
+
+tlistbool{
+    list[bool] int1;
+}
+
+tlistint8{
+    list[int8] int1;
+}
+
+tlistuint8{
+    list[uint8] int1;
+}
+
+tlistint16{
+    list[int16] int1;
+}
+
+tlistuint16{
+    list[uint16] int1;
+}
+
+tlistint32{
+    list[int32] int1;
+}
+
+tlistuint32{
+    list[uint32] int1;
+}
+
+tlistint64{
+    list[int64] int1;
+}
+
+tlistuint64{
+    list[uint64] int1;
+}
+
+tlistinteger{
+    list[integer] int1;
+}
+
+tlistnumber{
+    list[number] int1;
+}
+
+tlistfloat{
+    list[float] int1;
+}
+
+tlistdouble{
+    list[double] int1;
+}
+
+tliststring{
+    list[string] int1;
+}
+
+tlistunion{
+    list[union] int1;
+}
+
+%% 测试所有类型数据
+allType{
+    bool bool;
+    int8 int8;
+    uint8 uint8;
+    int16 int16;
+    uint16 uint16;
+    int32 int32;
+    uint32 uint32;
+    int64 int64;
+    uint64 uint64;
+    integer inte8;
+    integer uinte8;
+    integer inte16;
+    integer uinte16;
+    integer inte32;
+    integer uinte32;
+    integer inte64;
+    integer uinte64;
+    number num8;
+    number unum8;
+    number num16;
+    number unum16;
+    number num32;
+    number unum32;
+    number num64;
+    number unum64;
+    number numfloat;
+    number numdouble;
+    float float;
+    double double;
+    string string1;             //英文
+    string string2;             //汉字
+    union union;
+    list[bool] lbool;
+    list[int8] lint8;
+    list[uint8] luint8;
+    list[int16] lint16;
+    list[uint16] luint16;
+    list[int32] lint32;
+    list[uint32] luint32;
+    list[int64] lint64;
+    list[uint64] luint64;
+    list[integer] linte8;
+    list[integer] linte16;
+    list[integer] linte32;
+    list[integer] linte64;
+    list[number] lnum8;
+    list[number] lnum16;
+    list[number] lnum32;
+    list[number] lnum64;
+    list[number] lnfloat32;
+    list[number] lnfloat64;
+    list[float]  lfloat;
+    list[double] ldouble;
+    list[string] lstring;
+    list[union] lunion;
+}
