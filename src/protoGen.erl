@@ -453,7 +453,7 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
 					Acc
 			end
 		end,
-	%% 下面文件帅选并不能准确的帅选出文件名为.msg结尾的文件 在FunRead函数中纠正处理一下
+	%% 下面文件帅选并不能准确的帅选出文件名为.mpdf结尾的文件 在FunRead函数中纠正处理一下
 	{SProtoListOfList, ErrListOfList} = filelib:fold_files(ProtoDir, "\\.mpdf", true, FunRead, {[], []}),
 	SProtoList = lists:append(SProtoListOfList),
 	ErrList = lists:append(ErrListOfList),
