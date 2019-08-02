@@ -1,0 +1,10 @@
+%% person info
+//注释 $errcode[err1:辅导费, err2 : 444 ] tttttt33 辅导费
+%%1111 $errcode[err3:辅导费, err4:dfsf ] tttttt33 辅导费
+person1{
+	string name;    %% 名字
+	int32 id;       //错误码 $errcode[err5:其他注释辅导费, err6:dfff] 其他注释辅导费
+	string email;   //$errcode[err7:def, err8:其他注释辅导费 ] tttttt33 辅导费
+	list[phoneNumber] phone;   // list of phoneNumber
+}
+

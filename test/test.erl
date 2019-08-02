@@ -520,16 +520,6 @@ ttt(N, Bin) ->
 	binary_to_term(Bin),
 	ttt(N-1, Bin).
 
-
-
-
-
-
-
-
-
-
-
 print_bin(Bin) ->
 	ByteList = lists:reverse(bin_to_hex(Bin, [])),
 	Fun = fun(Byte, Acc) ->
