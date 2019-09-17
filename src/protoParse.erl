@@ -127,10 +127,11 @@ parseParse(Input) when is_binary(Input) ->
          ErrName = binary_to_list(iolist_to_binary(ErrNameList)),
          Desc = binary_to_list(iolist_to_binary(ErrCodeStrList)),
          ErrList = erlang:get(pd_errlist),
-         case ErrNameList =/= [] andalso lists:keyfind(ErrName, 1, ErrList) == false of
+         UpErrName = string:to_upper(ErrName),
+         case UpErrName =/= [] andalso lists:keyfind(UpErrName, 1, ErrList) == false of
             true ->
                ErrCodeId = erlang:get(pd_errcodeid),
-               erlang:put(pd_errlist, [{ErrName, ErrCodeId, Desc} | ErrList]),
+               erlang:put(pd_errlist, [{UpErrName, ErrCodeId, Desc} | ErrList]),
                erlang:put(pd_errcodeid, ErrCodeId + 1);
             _ ->
                skip
@@ -259,11 +260,11 @@ p(Inp, StartIndex, Name, ParseFun, TransformFun) ->
 memoize(Index, Name, Result) ->
    case erlang:get(Index) of
       undefined ->
-         put(Index, [{Name, Result}]);
+         erlang:put(Index, [{Name, Result}]);
       [] ->
-         put(Index, [{Name, Result}]);
+         erlang:put(Index, [{Name, Result}]);
       Plist ->
-         put(Index, [{Name, Result} | Plist])
+         erlang:put(Index, [{Name, Result} | Plist])
    end.
 
 -spec get_memo(index(), atom()) -> {ok, term()} | {error, not_found}.

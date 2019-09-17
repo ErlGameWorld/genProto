@@ -434,8 +434,9 @@ convertDir() ->
 convertDir(ProtoDir) ->
 	convertDir(ProtoDir, "./", "./").
 convertDir(ProtoDir, HrlDir, ErlDir) ->
+	erlang:put(pd_errlist, []),
 	FunRead =
-		fun(File, {ProAcc, ErrCodeAcc} = Acc) ->
+		fun(File, ProAcc) ->
 			case filename:extension(File) == ".mpdf" of
 				true ->
 					io:format("Convert proto msg file: ~s ~n", [File]),
@@ -444,19 +445,20 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
 					Index = binary_to_integer(ModIndex),
 					erlang:put(pd_messageid, Index * 1000 + 1),
 					erlang:put(pd_errcodeid, Index * 1000 + 1),
-					erlang:put(pd_errlist, []),
 					SProto = protoParse:parseFile(File),
 					ErrCode = erlang:get(pd_errlist),
 					erlang:erase(),
-					{[SProto | ProAcc], [ErrCode | ErrCodeAcc]};
+					erlang:put(pd_errlist, ErrCode),
+					[SProto | ProAcc];
 				_ ->
-					Acc
+					ProAcc
 			end
 		end,
 	%% 下面文件帅选并不能准确的帅选出文件名为.mpdf结尾的文件 在FunRead函数中纠正处理一下
-	{SProtoListOfList, ErrListOfList} = filelib:fold_files(ProtoDir, "\\.mpdf", true, FunRead, {[], []}),
+	SProtoListOfList = filelib:fold_files(ProtoDir, "\\.mpdf", true, FunRead, []),
 	SProtoList = lists:append(SProtoListOfList),
-	ErrList = lists:append(ErrListOfList),
+	ErrCodeList = erlang:get(pd_errlist),
+
 	SortedSProtoList = lists:sort(fun({_Name1, MessageId1, _FieldList1}, {_Name2, MessageId2, _FieldList2}) ->
 		MessageId1 > MessageId2 end, SProtoList),
 	FunSpell =
@@ -475,7 +477,7 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
 	{MsgHrlStr, MsgTypeStr, MsgIdStr, MsgEndStr, MsgSchemaStr} = lists:foldl(FunSpell, {[], ["getMsgType(_) -> undefined.\n\n"], ["getMsgId(_) -> 0.\n\n"], ["encodeRec(_) ->\n\t[].\n\n"], ["getMsgSchema(_) ->\n\t[].\n\n"]}, SortedSProtoList),
 
 	SortedErrList = lists:sort(fun({_ErrName1, ErrCodeId1, _Desc1}, {_ErrName2, ErrCodeId2, _Desc2}) ->
-		ErrCodeId1 > ErrCodeId2 end, ErrList),
+		ErrCodeId1 > ErrCodeId2 end, ErrCodeList),
 	ErrCodeStr = lists:foldl(fun genErrCodeHrl/2, [], SortedErrList) ++ "\n\n",
 
 	ModStr = protoErlHeader(),
