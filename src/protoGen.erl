@@ -313,18 +313,14 @@ getSubRec() ->
    erlang:get(pd_subRec).
 
 addSubRec({MsgName, _MsgId, _FieldList} = Info, IsForBin) when IsForBin ->
-   io:format("IMY************************111  ~p ~p~n",[Info, IsForBin]),
    OldList = erlang:get(pd_subRec),
    case lists:keyfind(MsgName, 1, OldList) of
       false ->
-         io:format("IMY************************3333  ~p ~p~n",[OldList, IsForBin]),
          erlang:put(pd_subRec, [Info | OldList]);
       _ ->
-         io:format("IMY************************444  ~p ~p~n",[Info, IsForBin]),
          ignore
    end;
 addSubRec(_Info, _IsForBin) ->
-   io:format("IMY************************222  ~p ~p~n",[_Info, _IsForBin]),
    ignore.
 
 genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
