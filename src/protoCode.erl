@@ -1,8 +1,9 @@
 -module(protoCode).
--compile(nowarn_unused_function).
+
+-compile([export_all, nowarn_unused_function, nowarn_export_all]).
 
 
--export([encode/1, decode/1, encodeRec/1, decodeRec/2]).
+-export([encode/1, decode/1, encodeRec/1, decodeBin/2]).
 
 -define(min8, -128).
 -define(max8, 127).
@@ -63,36 +64,30 @@ integer(V) ->
          throw(exceeded_the_integer)
    end.
 
-numInteger(V) ->
-   if
-      V >= ?min8 andalso V =< ?max8 ->
-         <<8:8, <<V:8>>/binary>>;
-      V >= ?min16 andalso V =< ?max16 ->
-         <<16:8, <<V:16/big>>/binary>>;
-      V >= ?min32 andalso V =< ?max32 ->
-         <<32:8, <<V:32/big>>/binary>>;
-      V >= ?min64 andalso V =< ?max64 ->
-         <<64:8, <<V:64/big>>/binary>>;
-      true ->
-         throw(exceeded_the_integer)
-   end.
-
-numFloat(V) ->
-   if
-      V >= ?minF32 andalso V =< ?maxF32 ->
-         <<33:8, <<V:32/big-float>>/binary>>;
-      V >= ?minF64 andalso V =< ?maxF64 ->
-         <<65:8, <<V:64/big-float>>/binary>>;
-      true ->
-         throw(exceeded_the_float)
-   end.
-
 number(V) ->
    if
-      erlang:is_integer(V) == true ->
-         numInteger(V);
-      erlang:is_float(V) == true ->
-         numFloat(V);
+      erlang:is_integer(V) ->
+         if
+            V >= ?min8 andalso V =< ?max8 ->
+               <<8:8, <<V:8>>/binary>>;
+            V >= ?min16 andalso V =< ?max16 ->
+               <<16:8, <<V:16/big>>/binary>>;
+            V >= ?min32 andalso V =< ?max32 ->
+               <<32:8, <<V:32/big>>/binary>>;
+            V >= ?min64 andalso V =< ?max64 ->
+               <<64:8, <<V:64/big>>/binary>>;
+            true ->
+               throw(exceeded_the_integer)
+         end;
+      erlang:is_float(V) ->
+         if
+            V >= ?minF32 andalso V =< ?maxF32 ->
+               <<33:8, <<V:32/big-float>>/binary>>;
+            V >= ?minF64 andalso V =< ?maxF64 ->
+               <<65:8, <<V:64/big-float>>/binary>>;
+            true ->
+               throw(exceeded_the_float)
+         end;
       true ->
          throw(is_not_number)
    end.
@@ -103,157 +98,12 @@ string(Str) ->
    Str2 = unicode:characters_to_binary(Str, utf8),
    [<<(byte_size(Str2)):16/big>>, Str2].
 
-encode(Record) ->
-   MsgBin = encodeRec(Record),
-   MsgId = getMsgId(element(1, Record)),
-   [<<MsgId:16/big>>, MsgBin].
-
 decode(Bin) ->
    <<MsgId:16/big, MsgBin/binary>> = Bin,
-   SchList = getMsgSchema(MsgId),
-   {<<>>, ResultList} = decodeField(SchList, MsgBin, [getMsgType(MsgId)]),
-   list_to_tuple(ResultList).
-
-decodeRec(RecordName, Bin) ->
-   SchList = getMsgSchema(RecordName),
-   {LeftBin, Result} = decodeField(SchList, Bin, [RecordName]),
-   {LeftBin, list_to_tuple(Result)}.
-
-decodeField([], LeftBin, Result) ->
-   {LeftBin, lists:reverse(Result)};
-decodeField([Type | SchList], MsgBin, Result) ->
-   case Type of
-      int32 ->
-         <<Int:32/big-signed, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      uint32 ->
-         <<Int:32/big-unsigned, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      string ->
-         <<Len:16/big, StrBin:Len/binary, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [StrBin | Result]);
-      int16 ->
-         <<Int:16/big-signed, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      uint16 ->
-         <<Int:16/big-unsigned, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      int8 ->
-         <<Int:8/big-signed, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      uint8 ->
-         <<Int:8/big-unsigned, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      int64 ->
-         <<Int:64/big-signed, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      uint64 ->
-         <<Int:64/big-unsigned, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      integer ->
-         <<IntBits:8, Int:IntBits/big-signed, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      number ->
-         <<NumBits:8, NumBin/binary>> = MsgBin,
-         case NumBits of
-            33 ->
-               <<Float:32/big-float, LeftBin/binary>> = NumBin,
-               decodeField(SchList, LeftBin, [Float | Result]);
-            65 ->
-               <<Float:64/big-float, LeftBin/binary>> = NumBin,
-               decodeField(SchList, LeftBin, [Float | Result]);
-            _ ->
-               <<Int:NumBits/big-signed, LeftBin/binary>> = NumBin,
-               decodeField(SchList, LeftBin, [Int | Result])
-         end;
-      bool ->
-         <<Bool:8/big-unsigned, LeftBin/binary>> = MsgBin,
-         case Bool =:= 1 of
-            true ->
-               decodeField(SchList, LeftBin, [true | Result]);
-            _ ->
-               decodeField(SchList, LeftBin, [false | Result])
-         end;
-      float ->
-         <<Float:32/big-float, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Float | Result]);
-      double ->
-         <<Float:64/big-float, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Float | Result]);
-      {list, int32} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deInt32List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, uint32} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deUint32List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, int16} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deInt16List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, uint16} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deUint16List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, int8} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deInt8List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, uint8} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deUint8List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, string} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deStringList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, int64} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deInt64List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, uint64} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deUint64List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, integer} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deIntegerList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, number} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deNumberList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, bool} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deBoolList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, float} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deFloatList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, double} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deDoubleList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, RecordName} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deRecordList(Len, RecordName, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      RecordName ->
-         <<IsUndef:8, LeftBin/binary>> = MsgBin,
-         case IsUndef of
-            0 ->
-               decodeField(SchList, LeftBin, [undefined | Result]);
-            _ ->
-               SubSchList = getMsgSchema(RecordName),
-               {SubLeftBin, SubResultList} = decodeField(SubSchList, LeftBin, [RecordName]),
-               decodeField(SchList, SubLeftBin, [list_to_tuple(SubResultList) | Result])
-         end
-   end.
+   decodeBin(MsgId, MsgBin).
 
 deBoolList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deBoolList(N, MsgBin, RetList) ->
    <<Bool:8, LeftBin/binary>> = MsgBin,
    case Bool =:= 1 of
@@ -262,62 +112,63 @@ deBoolList(N, MsgBin, RetList) ->
       _ ->
          deBoolList(N - 1, LeftBin, [false | RetList])
    end.
+
 deInt8List(0, MsgBin, RetList) ->
-   {MsgBin, RetList};
+   {RetList, MsgBin};
 deInt8List(N, MsgBin, RetList) ->
    <<Int:8/big-signed, LeftBin/binary>> = MsgBin,
    deInt8List(N - 1, LeftBin, [Int | RetList]).
 
 deUint8List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deUint8List(N, MsgBin, RetList) ->
    <<Int:8/big-unsigned, LeftBin/binary>> = MsgBin,
    deUint8List(N - 1, LeftBin, [Int | RetList]).
 
 deInt16List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deInt16List(N, MsgBin, RetList) ->
    <<Int:16/big-signed, LeftBin/binary>> = MsgBin,
    deInt16List(N - 1, LeftBin, [Int | RetList]).
 
 deUint16List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deUint16List(N, MsgBin, RetList) ->
    <<Int:16/big-unsigned, LeftBin/binary>> = MsgBin,
    deUint16List(N - 1, LeftBin, [Int | RetList]).
 
 deInt32List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deInt32List(N, MsgBin, RetList) ->
    <<Int:32/big-signed, LeftBin/binary>> = MsgBin,
    deInt32List(N - 1, LeftBin, [Int | RetList]).
 
 deUint32List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deUint32List(N, MsgBin, RetList) ->
    <<Int:32/big-unsigned, LeftBin/binary>> = MsgBin,
    deUint32List(N - 1, LeftBin, [Int | RetList]).
 
 deInt64List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deInt64List(N, MsgBin, RetList) ->
    <<Int:64/big-signed, LeftBin/binary>> = MsgBin,
    deInt64List(N - 1, LeftBin, [Int | RetList]).
 
 deUint64List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deUint64List(N, MsgBin, RetList) ->
    <<Int:64/big-unsigned, LeftBin/binary>> = MsgBin,
    deUint64List(N - 1, LeftBin, [Int | RetList]).
 
 deIntegerList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deIntegerList(N, MsgBin, RetList) ->
    <<IntBits:8, Int:IntBits/big-signed, LeftBin/binary>> = MsgBin,
    deIntegerList(N - 1, LeftBin, [Int | RetList]).
 
 deNumberList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deNumberList(N, MsgBin, RetList) ->
    <<NumBits:8, NumBin/binary>> = MsgBin,
    case NumBits of
@@ -333,38 +184,39 @@ deNumberList(N, MsgBin, RetList) ->
    end.
 
 deFloatList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deFloatList(N, MsgBin, RetList) ->
    <<Float:32/big-float, LeftBin/binary>> = MsgBin,
    deFloatList(N - 1, LeftBin, [Float | RetList]).
 
 deDoubleList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deDoubleList(N, MsgBin, RetList) ->
    <<Float:64/big-float, LeftBin/binary>> = MsgBin,
    deDoubleList(N - 1, LeftBin, [Float | RetList]).
 
 deStringList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deStringList(N, MsgBin, RetList) ->
    <<Len:16/big, StrBin:Len/binary-unit:8, LeftBin/binary>> = MsgBin,
    deStringList(N - 1, LeftBin, [StrBin | RetList]).
 
-deRecordList(0, _RecordName, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
-deRecordList(N, RecordName, MsgBin, RetList) ->
-   {LeftBin, Tuple} = decodeRec(RecordName, MsgBin),
-   deRecordList(N - 1, RecordName, LeftBin, [Tuple | RetList]).
-
+deRecordList(0, _MsgId, MsgBin, RetList) ->
+   {lists:reverse(RetList), MsgBin};
+deRecordList(N, MsgId, MsgBin, RetList) ->
+   {Tuple, LeftBin} = decodeRec(MsgId, MsgBin),
+   deRecordList(N - 1, MsgId, LeftBin, [Tuple | RetList]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%% 防止编译报错占位 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+encode(_) ->
+   ok.
 encodeRec(_) ->
    ok.
+decodeBin(_, _) ->
+   ok.
+decodeRec(_, _) ->
+   ok.
 getMsgId(_) ->
-   ok.
-getMsgType(_) ->
-   ok.
-getMsgSchema(_) ->
    ok.
 
 

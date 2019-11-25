@@ -2,6 +2,19 @@
 
 -compile([export_all, nowarn_export_all]).
 
+-define(SimpleList, [
+   , "int8"
+   , "uint8"
+   , "int16"
+   , "uint16"
+   , "int32"
+   , "uint32"
+   , "int64"
+   , "uint64"
+   , "float"
+   , "double"
+   ]).
+
 -define(TypeList, [
    "bool"
    , "int8"
@@ -18,6 +31,7 @@
    , "double"
    , "string"
 ]).
+
 -define(TypeValue, [
    {"bool", "false", "boolean()"}
    , {"int8", "0", "int8()"}
@@ -34,20 +48,6 @@
    , {"double", "0.0", "double()"}
    , {"string", "\"\"", "string()"}
 ]).
-
-getSchemaInfo(TypeStr) ->
-   case lists:member(TypeStr, ?TypeList) of
-      true ->
-         erlang:list_to_atom(TypeStr);
-      _ ->
-         case TypeStr of
-            "list[" ++ LeftStr ->
-               [SubTypeStr | _] = re:split(LeftStr, "\\]", [{return, list}]),
-               {list, erlang:list_to_atom(SubTypeStr)};
-            _ ->
-               erlang:list_to_atom(TypeStr)
-         end
-   end.
 
 builtRecStr({TypeStr, NameStr}) ->
    case lists:keyfind(TypeStr, 1, ?TypeValue) of
@@ -88,6 +88,10 @@ builtPackStr(TypeStr) ->
                "?record("
          end
    end.
+
+isBaseType(TypeStr) ->
+   lists:member(TypeStr, ?TypeList).
+
 
 
 

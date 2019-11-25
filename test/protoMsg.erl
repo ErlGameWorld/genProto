@@ -1,7 +1,10 @@
 -module(protoMsg).
 
 
--export([encode/1, decode/1, encodeRec/1, decodeRec/2]).
+
+-compile([nowarn_unused_vars]).
+
+-export([encode/1, decode/1, encodeRec/1, decodeBin/2]).
 
 -define(min8, -128).
 -define(max8, 127).
@@ -62,36 +65,30 @@ integer(V) ->
          throw(exceeded_the_integer)
    end.
 
-numInteger(V) ->
-   if
-      V >= ?min8 andalso V =< ?max8 ->
-         <<8:8, <<V:8>>/binary>>;
-      V >= ?min16 andalso V =< ?max16 ->
-         <<16:8, <<V:16/big>>/binary>>;
-      V >= ?min32 andalso V =< ?max32 ->
-         <<32:8, <<V:32/big>>/binary>>;
-      V >= ?min64 andalso V =< ?max64 ->
-         <<64:8, <<V:64/big>>/binary>>;
-      true ->
-         throw(exceeded_the_integer)
-   end.
-
-numFloat(V) ->
-   if
-      V >= ?minF32 andalso V =< ?maxF32 ->
-         <<33:8, <<V:32/big-float>>/binary>>;
-      V >= ?minF64 andalso V =< ?maxF64 ->
-         <<65:8, <<V:64/big-float>>/binary>>;
-      true ->
-         throw(exceeded_the_float)
-   end.
-
 number(V) ->
    if
-      erlang:is_integer(V) == true ->
-         numInteger(V);
-      erlang:is_float(V) == true ->
-         numFloat(V);
+      erlang:is_integer(V) ->
+         if
+            V >= ?min8 andalso V =< ?max8 ->
+               <<8:8, <<V:8>>/binary>>;
+            V >= ?min16 andalso V =< ?max16 ->
+               <<16:8, <<V:16/big>>/binary>>;
+            V >= ?min32 andalso V =< ?max32 ->
+               <<32:8, <<V:32/big>>/binary>>;
+            V >= ?min64 andalso V =< ?max64 ->
+               <<64:8, <<V:64/big>>/binary>>;
+            true ->
+               throw(exceeded_the_integer)
+         end;
+      erlang:is_float(V) ->
+         if
+            V >= ?minF32 andalso V =< ?maxF32 ->
+               <<33:8, <<V:32/big-float>>/binary>>;
+            V >= ?minF64 andalso V =< ?maxF64 ->
+               <<65:8, <<V:64/big-float>>/binary>>;
+            true ->
+               throw(exceeded_the_float)
+         end;
       true ->
          throw(is_not_number)
    end.
@@ -102,157 +99,12 @@ string(Str) ->
    Str2 = unicode:characters_to_binary(Str, utf8),
    [<<(byte_size(Str2)):16/big>>, Str2].
 
-encode(Record) ->
-   MsgBin = encodeRec(Record),
-   MsgId = getMsgId(element(1, Record)),
-   [<<MsgId:16/big>>, MsgBin].
-
 decode(Bin) ->
    <<MsgId:16/big, MsgBin/binary>> = Bin,
-   SchList = getMsgSchema(MsgId),
-   {<<>>, ResultList} = decodeField(SchList, MsgBin, [getMsgType(MsgId)]),
-   list_to_tuple(ResultList).
-
-decodeRec(RecordName, Bin) ->
-   SchList = getMsgSchema(RecordName),
-   {LeftBin, Result} = decodeField(SchList, Bin, [RecordName]),
-   {LeftBin, list_to_tuple(Result)}.
-
-decodeField([], LeftBin, Result) ->
-   {LeftBin, lists:reverse(Result)};
-decodeField([Type | SchList], MsgBin, Result) ->
-   case Type of
-      int32 ->
-         <<Int:32/big-signed, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      uint32 ->
-         <<Int:32/big-unsigned, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      string ->
-         <<Len:16/big, StrBin:Len/binary, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [StrBin | Result]);
-      int16 ->
-         <<Int:16/big-signed, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      uint16 ->
-         <<Int:16/big-unsigned, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      int8 ->
-         <<Int:8/big-signed, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      uint8 ->
-         <<Int:8/big-unsigned, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      int64 ->
-         <<Int:64/big-signed, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      uint64 ->
-         <<Int:64/big-unsigned, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      integer ->
-         <<IntBits:8, Int:IntBits/big-signed, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Int | Result]);
-      number ->
-         <<NumBits:8, NumBin/binary>> = MsgBin,
-         case NumBits of
-            33 ->
-               <<Float:32/big-float, LeftBin/binary>> = NumBin,
-               decodeField(SchList, LeftBin, [Float | Result]);
-            65 ->
-               <<Float:64/big-float, LeftBin/binary>> = NumBin,
-               decodeField(SchList, LeftBin, [Float | Result]);
-            _ ->
-               <<Int:NumBits/big-signed, LeftBin/binary>> = NumBin,
-               decodeField(SchList, LeftBin, [Int | Result])
-         end;
-      bool ->
-         <<Bool:8/big-unsigned, LeftBin/binary>> = MsgBin,
-         case Bool =:= 1 of
-            true ->
-               decodeField(SchList, LeftBin, [true | Result]);
-            _ ->
-               decodeField(SchList, LeftBin, [false | Result])
-         end;
-      float ->
-         <<Float:32/big-float, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Float | Result]);
-      double ->
-         <<Float:64/big-float, LeftBin/binary>> = MsgBin,
-         decodeField(SchList, LeftBin, [Float | Result]);
-      {list, int32} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deInt32List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, uint32} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deUint32List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, int16} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deInt16List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, uint16} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deUint16List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, int8} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deInt8List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, uint8} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deUint8List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, string} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deStringList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, int64} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deInt64List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, uint64} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deUint64List(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, integer} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deIntegerList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, number} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deNumberList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, bool} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deBoolList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, float} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deFloatList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, double} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deDoubleList(Len, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      {list, RecordName} ->
-         <<Len:16/big, LeftListBin/binary>> = MsgBin,
-         {LeftBin, RetList} = deRecordList(Len, RecordName, LeftListBin, []),
-         decodeField(SchList, LeftBin, [RetList | Result]);
-      RecordName ->
-         <<IsUndef:8, LeftBin/binary>> = MsgBin,
-         case IsUndef of
-            0 ->
-               decodeField(SchList, LeftBin, [undefined | Result]);
-            _ ->
-               SubSchList = getMsgSchema(RecordName),
-               {SubLeftBin, SubResultList} = decodeField(SubSchList, LeftBin, [RecordName]),
-               decodeField(SchList, SubLeftBin, [list_to_tuple(SubResultList) | Result])
-         end
-   end.
+   decodeBin(MsgId, MsgBin).
 
 deBoolList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deBoolList(N, MsgBin, RetList) ->
    <<Bool:8, LeftBin/binary>> = MsgBin,
    case Bool =:= 1 of
@@ -261,62 +113,63 @@ deBoolList(N, MsgBin, RetList) ->
       _ ->
          deBoolList(N - 1, LeftBin, [false | RetList])
    end.
+
 deInt8List(0, MsgBin, RetList) ->
-   {MsgBin, RetList};
+   {RetList, MsgBin};
 deInt8List(N, MsgBin, RetList) ->
    <<Int:8/big-signed, LeftBin/binary>> = MsgBin,
    deInt8List(N - 1, LeftBin, [Int | RetList]).
 
 deUint8List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deUint8List(N, MsgBin, RetList) ->
    <<Int:8/big-unsigned, LeftBin/binary>> = MsgBin,
    deUint8List(N - 1, LeftBin, [Int | RetList]).
 
 deInt16List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deInt16List(N, MsgBin, RetList) ->
    <<Int:16/big-signed, LeftBin/binary>> = MsgBin,
    deInt16List(N - 1, LeftBin, [Int | RetList]).
 
 deUint16List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deUint16List(N, MsgBin, RetList) ->
    <<Int:16/big-unsigned, LeftBin/binary>> = MsgBin,
    deUint16List(N - 1, LeftBin, [Int | RetList]).
 
 deInt32List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deInt32List(N, MsgBin, RetList) ->
    <<Int:32/big-signed, LeftBin/binary>> = MsgBin,
    deInt32List(N - 1, LeftBin, [Int | RetList]).
 
 deUint32List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deUint32List(N, MsgBin, RetList) ->
    <<Int:32/big-unsigned, LeftBin/binary>> = MsgBin,
    deUint32List(N - 1, LeftBin, [Int | RetList]).
 
 deInt64List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deInt64List(N, MsgBin, RetList) ->
    <<Int:64/big-signed, LeftBin/binary>> = MsgBin,
    deInt64List(N - 1, LeftBin, [Int | RetList]).
 
 deUint64List(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deUint64List(N, MsgBin, RetList) ->
    <<Int:64/big-unsigned, LeftBin/binary>> = MsgBin,
    deUint64List(N - 1, LeftBin, [Int | RetList]).
 
 deIntegerList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deIntegerList(N, MsgBin, RetList) ->
    <<IntBits:8, Int:IntBits/big-signed, LeftBin/binary>> = MsgBin,
    deIntegerList(N - 1, LeftBin, [Int | RetList]).
 
 deNumberList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deNumberList(N, MsgBin, RetList) ->
    <<NumBits:8, NumBin/binary>> = MsgBin,
    case NumBits of
@@ -332,66 +185,28 @@ deNumberList(N, MsgBin, RetList) ->
    end.
 
 deFloatList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deFloatList(N, MsgBin, RetList) ->
    <<Float:32/big-float, LeftBin/binary>> = MsgBin,
    deFloatList(N - 1, LeftBin, [Float | RetList]).
 
 deDoubleList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deDoubleList(N, MsgBin, RetList) ->
    <<Float:64/big-float, LeftBin/binary>> = MsgBin,
    deDoubleList(N - 1, LeftBin, [Float | RetList]).
 
 deStringList(0, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
+   {lists:reverse(RetList), MsgBin};
 deStringList(N, MsgBin, RetList) ->
    <<Len:16/big, StrBin:Len/binary-unit:8, LeftBin/binary>> = MsgBin,
    deStringList(N - 1, LeftBin, [StrBin | RetList]).
 
-deRecordList(0, _RecordName, MsgBin, RetList) ->
-   {MsgBin, lists:reverse(RetList)};
-deRecordList(N, RecordName, MsgBin, RetList) ->
-   {LeftBin, Tuple} = decodeRec(RecordName, MsgBin),
-   deRecordList(N - 1, RecordName, LeftBin, [Tuple | RetList]).
-
-getMsgType(1)-> test;
-getMsgType(2)-> phoneNumber;
-getMsgType(3)-> person;
-getMsgType(4)-> addressBook;
-getMsgType(5)-> union;
-getMsgType(6)-> tbool;
-getMsgType(7)-> tint8;
-getMsgType(8)-> tuint8;
-getMsgType(9)-> tint16;
-getMsgType(10)-> tuint16;
-getMsgType(11)-> tint32;
-getMsgType(12)-> tuint32;
-getMsgType(13)-> tint64;
-getMsgType(14)-> tuint64;
-getMsgType(15)-> tinteger;
-getMsgType(16)-> tnumber;
-getMsgType(17)-> tfloat;
-getMsgType(18)-> tdouble;
-getMsgType(19)-> tstring;
-getMsgType(20)-> tlistbool;
-getMsgType(21)-> tlistint8;
-getMsgType(22)-> tlistuint8;
-getMsgType(23)-> tlistint16;
-getMsgType(24)-> tlistuint16;
-getMsgType(25)-> tlistint32;
-getMsgType(26)-> tlistuint32;
-getMsgType(27)-> tlistint64;
-getMsgType(28)-> tlistuint64;
-getMsgType(29)-> tlistinteger;
-getMsgType(30)-> tlistnumber;
-getMsgType(31)-> tlistfloat;
-getMsgType(32)-> tlistdouble;
-getMsgType(33)-> tliststring;
-getMsgType(34)-> tlistunion;
-getMsgType(35)-> allType;
-getMsgType(1001)-> person1;
-getMsgType(_) -> undefined.
+deRecordList(0, _MsgId, MsgBin, RetList) ->
+   {lists:reverse(RetList), MsgBin};
+deRecordList(N, MsgId, MsgBin, RetList) ->
+   {Tuple, LeftBin} = decodeRec(MsgId, MsgBin),
+   deRecordList(N - 1, MsgId, LeftBin, [Tuple | RetList]).
 
 getMsgId(test)-> 1;
 getMsgId(phoneNumber)-> 2;
@@ -437,244 +252,511 @@ encodeRec({phoneNumber, V1, V2}) ->
 	[?record(V1), ?int32(V2)];
 encodeRec({person, V1, V2, V3, V4}) ->
 	[?string(V1), ?int32(V2), ?string(V3), ?list_record(V4)];
-encodeRec({addressBook, V1, V2}) ->
-	[?list_record(V1), ?list_record(V2)];
 encodeRec({union, V1, V2}) ->
 	[?string(V1), ?int32(V2)];
-encodeRec({tbool, V1}) ->
-	[?bool(V1)];
-encodeRec({tint8, V1, V2}) ->
-	[?int8(V1), ?int8(V2)];
-encodeRec({tuint8, V1, V2}) ->
-	[?uint8(V1), ?uint8(V2)];
-encodeRec({tint16, V1, V2}) ->
-	[?int16(V1), ?int16(V2)];
-encodeRec({tuint16, V1, V2}) ->
-	[?uint16(V1), ?uint16(V2)];
-encodeRec({tint32, V1, V2}) ->
-	[?int32(V1), ?int32(V2)];
-encodeRec({tuint32, V1, V2}) ->
-	[?uint32(V1), ?uint32(V2)];
-encodeRec({tint64, V1, V2}) ->
-	[?int64(V1), ?int64(V2)];
-encodeRec({tuint64, V1, V2}) ->
-	[?uint64(V1), ?uint64(V2)];
-encodeRec({tinteger, V1, V2, V3, V4, V5, V6, V7, V8}) ->
-	[?integer(V1), ?integer(V2), ?integer(V3), ?integer(V4), ?integer(V5), ?integer(V6), ?integer(V7), ?integer(V8)];
-encodeRec({tnumber, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10}) ->
-	[?number(V1), ?number(V2), ?number(V3), ?number(V4), ?number(V5), ?number(V6), ?number(V7), ?number(V8), ?number(V9), ?number(V10)];
-encodeRec({tfloat, V1, V2}) ->
-	[?float(V1), ?float(V2)];
-encodeRec({tdouble, V1, V2}) ->
-	[?double(V1), ?double(V2)];
-encodeRec({tstring, V1, V2}) ->
-	[?string(V1), ?string(V2)];
-encodeRec({tlistbool, V1}) ->
-	[?list_bool(V1)];
-encodeRec({tlistint8, V1}) ->
-	[?list_int8(V1)];
-encodeRec({tlistuint8, V1}) ->
-	[?list_uint8(V1)];
-encodeRec({tlistint16, V1}) ->
-	[?list_int16(V1)];
-encodeRec({tlistuint16, V1}) ->
-	[?list_uint16(V1)];
-encodeRec({tlistint32, V1}) ->
-	[?list_int32(V1)];
-encodeRec({tlistuint32, V1}) ->
-	[?list_uint32(V1)];
-encodeRec({tlistint64, V1}) ->
-	[?list_int64(V1)];
-encodeRec({tlistuint64, V1}) ->
-	[?list_uint64(V1)];
-encodeRec({tlistinteger, V1}) ->
-	[?list_integer(V1)];
-encodeRec({tlistnumber, V1}) ->
-	[?list_number(V1)];
-encodeRec({tlistfloat, V1}) ->
-	[?list_float(V1)];
-encodeRec({tlistdouble, V1}) ->
-	[?list_double(V1)];
-encodeRec({tliststring, V1}) ->
-	[?list_string(V1)];
-encodeRec({tlistunion, V1}) ->
-	[?list_record(V1)];
-encodeRec({allType, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40, V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53, V54, V55}) ->
-	[?bool(V1), ?int8(V2), ?uint8(V3), ?int16(V4), ?uint16(V5), ?int32(V6), ?uint32(V7), ?int64(V8), ?uint64(V9), ?integer(V10), ?integer(V11), ?integer(V12), ?integer(V13), ?integer(V14), ?integer(V15), ?integer(V16), ?integer(V17), ?number(V18), ?number(V19), ?number(V20), ?number(V21), ?number(V22), ?number(V23), ?number(V24), ?number(V25), ?number(V26), ?number(V27), ?float(V28), ?double(V29), ?string(V30), ?string(V31), ?record(V32), ?list_bool(V33), ?list_int8(V34), ?list_uint8(V35), ?list_int16(V36), ?list_uint16(V37), ?list_int32(V38), ?list_uint32(V39), ?list_int64(V40), ?list_uint64(V41), ?list_integer(V42), ?list_integer(V43), ?list_integer(V44), ?list_integer(V45), ?list_number(V46), ?list_number(V47), ?list_number(V48), ?list_number(V49), ?list_number(V50), ?list_number(V51), ?list_float(V52), ?list_double(V53), ?list_string(V54), ?list_record(V55)];
-encodeRec({person1, V1, V2, V3, V4}) ->
-	[?string(V1), ?int32(V2), ?string(V3), ?list_record(V4)];
 encodeRec(_) ->
 	[].
 
-getMsgSchema(test)->
-	getMsgSchema(1);
-getMsgSchema(1)->
-	[string];
-getMsgSchema(phoneNumber)->
-	getMsgSchema(2);
-getMsgSchema(2)->
-	[test,int32];
-getMsgSchema(person)->
-	getMsgSchema(3);
-getMsgSchema(3)->
-	[string,int32,string,{list,phoneNumber}];
-getMsgSchema(addressBook)->
-	getMsgSchema(4);
-getMsgSchema(4)->
-	[{list,person},{list,person}];
-getMsgSchema(union)->
-	getMsgSchema(5);
-getMsgSchema(5)->
-	[string,int32];
-getMsgSchema(tbool)->
-	getMsgSchema(6);
-getMsgSchema(6)->
-	[bool];
-getMsgSchema(tint8)->
-	getMsgSchema(7);
-getMsgSchema(7)->
-	[int8,int8];
-getMsgSchema(tuint8)->
-	getMsgSchema(8);
-getMsgSchema(8)->
-	[uint8,uint8];
-getMsgSchema(tint16)->
-	getMsgSchema(9);
-getMsgSchema(9)->
-	[int16,int16];
-getMsgSchema(tuint16)->
-	getMsgSchema(10);
-getMsgSchema(10)->
-	[uint16,uint16];
-getMsgSchema(tint32)->
-	getMsgSchema(11);
-getMsgSchema(11)->
-	[int32,int32];
-getMsgSchema(tuint32)->
-	getMsgSchema(12);
-getMsgSchema(12)->
-	[uint32,uint32];
-getMsgSchema(tint64)->
-	getMsgSchema(13);
-getMsgSchema(13)->
-	[int64,int64];
-getMsgSchema(tuint64)->
-	getMsgSchema(14);
-getMsgSchema(14)->
-	[uint64,uint64];
-getMsgSchema(tinteger)->
-	getMsgSchema(15);
-getMsgSchema(15)->
-	[integer,integer,integer,integer,integer,integer,integer,integer];
-getMsgSchema(tnumber)->
-	getMsgSchema(16);
-getMsgSchema(16)->
-	[number,number,number,number,number,number,number,number,number,number];
-getMsgSchema(tfloat)->
-	getMsgSchema(17);
-getMsgSchema(17)->
-	[float,float];
-getMsgSchema(tdouble)->
-	getMsgSchema(18);
-getMsgSchema(18)->
-	[double,double];
-getMsgSchema(tstring)->
-	getMsgSchema(19);
-getMsgSchema(19)->
-	[string,string];
-getMsgSchema(tlistbool)->
-	getMsgSchema(20);
-getMsgSchema(20)->
-	[{list,bool}];
-getMsgSchema(tlistint8)->
-	getMsgSchema(21);
-getMsgSchema(21)->
-	[{list,int8}];
-getMsgSchema(tlistuint8)->
-	getMsgSchema(22);
-getMsgSchema(22)->
-	[{list,uint8}];
-getMsgSchema(tlistint16)->
-	getMsgSchema(23);
-getMsgSchema(23)->
-	[{list,int16}];
-getMsgSchema(tlistuint16)->
-	getMsgSchema(24);
-getMsgSchema(24)->
-	[{list,uint16}];
-getMsgSchema(tlistint32)->
-	getMsgSchema(25);
-getMsgSchema(25)->
-	[{list,int32}];
-getMsgSchema(tlistuint32)->
-	getMsgSchema(26);
-getMsgSchema(26)->
-	[{list,uint32}];
-getMsgSchema(tlistint64)->
-	getMsgSchema(27);
-getMsgSchema(27)->
-	[{list,int64}];
-getMsgSchema(tlistuint64)->
-	getMsgSchema(28);
-getMsgSchema(28)->
-	[{list,uint64}];
-getMsgSchema(tlistinteger)->
-	getMsgSchema(29);
-getMsgSchema(29)->
-	[{list,integer}];
-getMsgSchema(tlistnumber)->
-	getMsgSchema(30);
-getMsgSchema(30)->
-	[{list,number}];
-getMsgSchema(tlistfloat)->
-	getMsgSchema(31);
-getMsgSchema(31)->
-	[{list,float}];
-getMsgSchema(tlistdouble)->
-	getMsgSchema(32);
-getMsgSchema(32)->
-	[{list,double}];
-getMsgSchema(tliststring)->
-	getMsgSchema(33);
-getMsgSchema(33)->
-	[{list,string}];
-getMsgSchema(tlistunion)->
-	getMsgSchema(34);
-getMsgSchema(34)->
-	[{list,union}];
-getMsgSchema(allType)->
-	getMsgSchema(35);
-getMsgSchema(35)->
-	[bool,int8,uint8,int16,uint16,int32,uint32,int64,uint64,integer,integer,
- integer,integer,integer,integer,integer,integer,number,number,number,number,
- number,number,number,number,number,number,float,double,string,string,union,
- {list,bool},
- {list,int8},
- {list,uint8},
- {list,int16},
- {list,uint16},
- {list,int32},
- {list,uint32},
- {list,int64},
- {list,uint64},
- {list,integer},
- {list,integer},
- {list,integer},
- {list,integer},
- {list,number},
- {list,number},
- {list,number},
- {list,number},
- {list,number},
- {list,number},
- {list,float},
- {list,double},
- {list,string},
- {list,union}];
-getMsgSchema(person1)->
-	getMsgSchema(1001);
-getMsgSchema(1001)->
-	[string,int32,string,{list,phoneNumber}];
-getMsgSchema(_) ->
+encode({test, V1}) ->
+	[<<1:16/big-unsigned>>, ?string(V1)];
+encode({phoneNumber, V1, V2}) ->
+	[<<2:16/big-unsigned>>, ?record(V1), ?int32(V2)];
+encode({person, V1, V2, V3, V4}) ->
+	[<<3:16/big-unsigned>>, ?string(V1), ?int32(V2), ?string(V3), ?list_record(V4)];
+encode({addressBook, V1, V2}) ->
+	[<<4:16/big-unsigned>>, ?list_record(V1), ?list_record(V2)];
+encode({union, V1, V2}) ->
+	[<<5:16/big-unsigned>>, ?string(V1), ?int32(V2)];
+encode({tbool, V1}) ->
+	[<<6:16/big-unsigned>>, ?bool(V1)];
+encode({tint8, V1, V2}) ->
+	[<<7:16/big-unsigned>>, ?int8(V1), ?int8(V2)];
+encode({tuint8, V1, V2}) ->
+	[<<8:16/big-unsigned>>, ?uint8(V1), ?uint8(V2)];
+encode({tint16, V1, V2}) ->
+	[<<9:16/big-unsigned>>, ?int16(V1), ?int16(V2)];
+encode({tuint16, V1, V2}) ->
+	[<<10:16/big-unsigned>>, ?uint16(V1), ?uint16(V2)];
+encode({tint32, V1, V2}) ->
+	[<<11:16/big-unsigned>>, ?int32(V1), ?int32(V2)];
+encode({tuint32, V1, V2}) ->
+	[<<12:16/big-unsigned>>, ?uint32(V1), ?uint32(V2)];
+encode({tint64, V1, V2}) ->
+	[<<13:16/big-unsigned>>, ?int64(V1), ?int64(V2)];
+encode({tuint64, V1, V2}) ->
+	[<<14:16/big-unsigned>>, ?uint64(V1), ?uint64(V2)];
+encode({tinteger, V1, V2, V3, V4, V5, V6, V7, V8}) ->
+	[<<15:16/big-unsigned>>, ?integer(V1), ?integer(V2), ?integer(V3), ?integer(V4), ?integer(V5), ?integer(V6), ?integer(V7), ?integer(V8)];
+encode({tnumber, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10}) ->
+	[<<16:16/big-unsigned>>, ?number(V1), ?number(V2), ?number(V3), ?number(V4), ?number(V5), ?number(V6), ?number(V7), ?number(V8), ?number(V9), ?number(V10)];
+encode({tfloat, V1, V2}) ->
+	[<<17:16/big-unsigned>>, ?float(V1), ?float(V2)];
+encode({tdouble, V1, V2}) ->
+	[<<18:16/big-unsigned>>, ?double(V1), ?double(V2)];
+encode({tstring, V1, V2}) ->
+	[<<19:16/big-unsigned>>, ?string(V1), ?string(V2)];
+encode({tlistbool, V1}) ->
+	[<<20:16/big-unsigned>>, ?list_bool(V1)];
+encode({tlistint8, V1}) ->
+	[<<21:16/big-unsigned>>, ?list_int8(V1)];
+encode({tlistuint8, V1}) ->
+	[<<22:16/big-unsigned>>, ?list_uint8(V1)];
+encode({tlistint16, V1}) ->
+	[<<23:16/big-unsigned>>, ?list_int16(V1)];
+encode({tlistuint16, V1}) ->
+	[<<24:16/big-unsigned>>, ?list_uint16(V1)];
+encode({tlistint32, V1}) ->
+	[<<25:16/big-unsigned>>, ?list_int32(V1)];
+encode({tlistuint32, V1}) ->
+	[<<26:16/big-unsigned>>, ?list_uint32(V1)];
+encode({tlistint64, V1}) ->
+	[<<27:16/big-unsigned>>, ?list_int64(V1)];
+encode({tlistuint64, V1}) ->
+	[<<28:16/big-unsigned>>, ?list_uint64(V1)];
+encode({tlistinteger, V1}) ->
+	[<<29:16/big-unsigned>>, ?list_integer(V1)];
+encode({tlistnumber, V1}) ->
+	[<<30:16/big-unsigned>>, ?list_number(V1)];
+encode({tlistfloat, V1}) ->
+	[<<31:16/big-unsigned>>, ?list_float(V1)];
+encode({tlistdouble, V1}) ->
+	[<<32:16/big-unsigned>>, ?list_double(V1)];
+encode({tliststring, V1}) ->
+	[<<33:16/big-unsigned>>, ?list_string(V1)];
+encode({tlistunion, V1}) ->
+	[<<34:16/big-unsigned>>, ?list_record(V1)];
+encode({allType, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40, V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53, V54, V55}) ->
+	[<<35:16/big-unsigned>>, ?bool(V1), ?int8(V2), ?uint8(V3), ?int16(V4), ?uint16(V5), ?int32(V6), ?uint32(V7), ?int64(V8), ?uint64(V9), ?integer(V10), ?integer(V11), ?integer(V12), ?integer(V13), ?integer(V14), ?integer(V15), ?integer(V16), ?integer(V17), ?number(V18), ?number(V19), ?number(V20), ?number(V21), ?number(V22), ?number(V23), ?number(V24), ?number(V25), ?number(V26), ?number(V27), ?float(V28), ?double(V29), ?string(V30), ?string(V31), ?record(V32), ?list_bool(V33), ?list_int8(V34), ?list_uint8(V35), ?list_int16(V36), ?list_uint16(V37), ?list_int32(V38), ?list_uint32(V39), ?list_int64(V40), ?list_uint64(V41), ?list_integer(V42), ?list_integer(V43), ?list_integer(V44), ?list_integer(V45), ?list_number(V46), ?list_number(V47), ?list_number(V48), ?list_number(V49), ?list_number(V50), ?list_number(V51), ?list_float(V52), ?list_double(V53), ?list_string(V54), ?list_record(V55)];
+encode({person1, V1, V2, V3, V4}) ->
+	[<<1001:16/big-unsigned>>, ?string(V1), ?int32(V2), ?string(V3), ?list_record(V4)];
+encode(_) ->
 	[].
+
+decodeRec(1, LeftBin0) ->
+	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	MsgRec = {test, V1},
+	{MsgRec, LeftBin1};
+decodeRec(2, LeftBin0) ->
+	<<IsUndef1:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	case IsUndef1 of
+		0 ->
+			V1 = undefined,
+			LeftBin2 = LeftBin1 ;
+		_ ->
+			{V1, LeftBin2} = decodeRec(1, LeftBin1)
+	end,
+	<<V2:32/big-signed, LeftBin3/binary>> = LeftBin2,
+	MsgRec = {phoneNumber, V1, V2},
+	{MsgRec, LeftBin3};
+decodeRec(3, LeftBin0) ->
+	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
+	<<Len2:16/big-unsigned, V3:Len2/binary, LeftBin3/binary>> = LeftBin2,
+	<<Len3:16/big-unsigned, LeftBin4/binary>> = LeftBin3,
+	{V4, LeftBin5} = deRecordList(Len3, 2, LeftBin4, []),
+	MsgRec = {person, V1, V2, V3, V4},
+	{MsgRec, LeftBin5};
+decodeRec(5, LeftBin0) ->
+	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
+	MsgRec = {union, V1, V2},
+	{MsgRec, LeftBin2};
+decodeRec(_, _) ->
+	{{}, <<>>}.
+
+decodeBin(1, LeftBin0) ->
+	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	{test, V1};
+decodeBin(2, LeftBin0) ->
+	<<IsUndef1:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	case IsUndef1 of
+		0 ->
+			V1 = undefined,
+			LeftBin2 = LeftBin1 ;
+		_ ->
+			{V1, LeftBin2} = decodeRec(1, LeftBin1)
+	end,
+	<<V2:32/big-signed, LeftBin3/binary>> = LeftBin2,
+	{phoneNumber, V1, V2};
+decodeBin(3, LeftBin0) ->
+	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
+	<<Len2:16/big-unsigned, V3:Len2/binary, LeftBin3/binary>> = LeftBin2,
+	<<Len3:16/big-unsigned, LeftBin4/binary>> = LeftBin3,
+	{V4, LeftBin5} = deRecordList(Len3, 2, LeftBin4, []),
+	{person, V1, V2, V3, V4};
+decodeBin(4, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deRecordList(Len1, 3, LeftBin1, []),
+	<<Len2:16/big-unsigned, LeftBin3/binary>> = LeftBin2,
+	{V2, LeftBin4} = deRecordList(Len2, 3, LeftBin3, []),
+	{addressBook, V1, V2};
+decodeBin(5, LeftBin0) ->
+	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
+	{union, V1, V2};
+decodeBin(6, LeftBin0) ->
+	<<Bool1:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	case Bool1 =:= 1 of
+		true ->
+			V1 = true;
+		_ ->
+			V1 = false
+	end,
+	{tbool, V1};
+decodeBin(7, LeftBin0) ->
+	<<V1:8/big-signed, V2:8/big-signed, LeftBin1/binary>> = LeftBin0,
+	{tint8, V1, V2};
+decodeBin(8, LeftBin0) ->
+	<<V1:8/big-unsigned, V2:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{tuint8, V1, V2};
+decodeBin(9, LeftBin0) ->
+	<<V1:16/big-signed, V2:16/big-signed, LeftBin1/binary>> = LeftBin0,
+	{tint16, V1, V2};
+decodeBin(10, LeftBin0) ->
+	<<V1:16/big-unsigned, V2:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{tuint16, V1, V2};
+decodeBin(11, LeftBin0) ->
+	<<V1:32/big-signed, V2:32/big-signed, LeftBin1/binary>> = LeftBin0,
+	{tint32, V1, V2};
+decodeBin(12, LeftBin0) ->
+	<<V1:32/big-unsigned, V2:32/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{tuint32, V1, V2};
+decodeBin(13, LeftBin0) ->
+	<<V1:64/big-signed, V2:64/big-signed, LeftBin1/binary>> = LeftBin0,
+	{tint64, V1, V2};
+decodeBin(14, LeftBin0) ->
+	<<V1:64/big-unsigned, V2:64/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{tuint64, V1, V2};
+decodeBin(15, LeftBin0) ->
+	<<IntBits1:8, V1:IntBits1/big-signed, IntBits2:8, V2:IntBits2/big-signed, IntBits3:8, V3:IntBits3/big-signed, IntBits4:8, V4:IntBits4/big-signed, IntBits5:8, V5:IntBits5/big-signed, IntBits6:8, V6:IntBits6/big-signed, IntBits7:8, V7:IntBits7/big-signed, IntBits8:8, V8:IntBits8/big-signed, LeftBin1/binary>> = LeftBin0,
+	{tinteger, V1, V2, V3, V4, V5, V6, V7, V8};
+decodeBin(16, LeftBin0) ->
+	<<NumBits1:8, LeftBin1/binary>> = LeftBin0,
+	case NumBits1 of
+		33-> 
+			<<V1:32/big-float, LeftBin2/binary>> = LeftBin1;
+		65 ->
+			<<V1:64/big-float, LeftBin2/binary>> = LeftBin1;
+		_ ->
+			<<V1:NumBits1/big-signed, LeftBin2/binary>> = LeftBin1
+	end,
+	<<NumBits2:8, LeftBin3/binary>> = LeftBin2,
+	case NumBits2 of
+		33-> 
+			<<V2:32/big-float, LeftBin4/binary>> = LeftBin3;
+		65 ->
+			<<V2:64/big-float, LeftBin4/binary>> = LeftBin3;
+		_ ->
+			<<V2:NumBits2/big-signed, LeftBin4/binary>> = LeftBin3
+	end,
+	<<NumBits3:8, LeftBin5/binary>> = LeftBin4,
+	case NumBits3 of
+		33-> 
+			<<V3:32/big-float, LeftBin6/binary>> = LeftBin5;
+		65 ->
+			<<V3:64/big-float, LeftBin6/binary>> = LeftBin5;
+		_ ->
+			<<V3:NumBits3/big-signed, LeftBin6/binary>> = LeftBin5
+	end,
+	<<NumBits4:8, LeftBin7/binary>> = LeftBin6,
+	case NumBits4 of
+		33-> 
+			<<V4:32/big-float, LeftBin8/binary>> = LeftBin7;
+		65 ->
+			<<V4:64/big-float, LeftBin8/binary>> = LeftBin7;
+		_ ->
+			<<V4:NumBits4/big-signed, LeftBin8/binary>> = LeftBin7
+	end,
+	<<NumBits5:8, LeftBin9/binary>> = LeftBin8,
+	case NumBits5 of
+		33-> 
+			<<V5:32/big-float, LeftBin10/binary>> = LeftBin9;
+		65 ->
+			<<V5:64/big-float, LeftBin10/binary>> = LeftBin9;
+		_ ->
+			<<V5:NumBits5/big-signed, LeftBin10/binary>> = LeftBin9
+	end,
+	<<NumBits6:8, LeftBin11/binary>> = LeftBin10,
+	case NumBits6 of
+		33-> 
+			<<V6:32/big-float, LeftBin12/binary>> = LeftBin11;
+		65 ->
+			<<V6:64/big-float, LeftBin12/binary>> = LeftBin11;
+		_ ->
+			<<V6:NumBits6/big-signed, LeftBin12/binary>> = LeftBin11
+	end,
+	<<NumBits7:8, LeftBin13/binary>> = LeftBin12,
+	case NumBits7 of
+		33-> 
+			<<V7:32/big-float, LeftBin14/binary>> = LeftBin13;
+		65 ->
+			<<V7:64/big-float, LeftBin14/binary>> = LeftBin13;
+		_ ->
+			<<V7:NumBits7/big-signed, LeftBin14/binary>> = LeftBin13
+	end,
+	<<NumBits8:8, LeftBin15/binary>> = LeftBin14,
+	case NumBits8 of
+		33-> 
+			<<V8:32/big-float, LeftBin16/binary>> = LeftBin15;
+		65 ->
+			<<V8:64/big-float, LeftBin16/binary>> = LeftBin15;
+		_ ->
+			<<V8:NumBits8/big-signed, LeftBin16/binary>> = LeftBin15
+	end,
+	<<NumBits9:8, LeftBin17/binary>> = LeftBin16,
+	case NumBits9 of
+		33-> 
+			<<V9:32/big-float, LeftBin18/binary>> = LeftBin17;
+		65 ->
+			<<V9:64/big-float, LeftBin18/binary>> = LeftBin17;
+		_ ->
+			<<V9:NumBits9/big-signed, LeftBin18/binary>> = LeftBin17
+	end,
+	<<NumBits10:8, LeftBin19/binary>> = LeftBin18,
+	case NumBits10 of
+		33-> 
+			<<V10:32/big-float, LeftBin20/binary>> = LeftBin19;
+		65 ->
+			<<V10:64/big-float, LeftBin20/binary>> = LeftBin19;
+		_ ->
+			<<V10:NumBits10/big-signed, LeftBin20/binary>> = LeftBin19
+	end,
+	{tnumber, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10};
+decodeBin(17, LeftBin0) ->
+	<<V1:32/big-float, V2:32/big-float, LeftBin1/binary>> = LeftBin0,
+	{tfloat, V1, V2};
+decodeBin(18, LeftBin0) ->
+	<<V1:64/big-float, V2:64/big-float, LeftBin1/binary>> = LeftBin0,
+	{tdouble, V1, V2};
+decodeBin(19, LeftBin0) ->
+	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	<<Len2:16/big-unsigned, V2:Len2/binary, LeftBin2/binary>> = LeftBin1,
+	{tstring, V1, V2};
+decodeBin(20, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deBoolList(Len1, LeftBin1, []),
+	{tlistbool, V1};
+decodeBin(21, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deInt8List(Len1, LeftBin1, []),
+	{tlistint8, V1};
+decodeBin(22, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deUint8List(Len1, LeftBin1, []),
+	{tlistuint8, V1};
+decodeBin(23, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deInt16List(Len1, LeftBin1, []),
+	{tlistint16, V1};
+decodeBin(24, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deUint16List(Len1, LeftBin1, []),
+	{tlistuint16, V1};
+decodeBin(25, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deInt32List(Len1, LeftBin1, []),
+	{tlistint32, V1};
+decodeBin(26, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deUint32List(Len1, LeftBin1, []),
+	{tlistuint32, V1};
+decodeBin(27, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deInt64List(Len1, LeftBin1, []),
+	{tlistint64, V1};
+decodeBin(28, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deUint64List(Len1, LeftBin1, []),
+	{tlistuint64, V1};
+decodeBin(29, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deIntegerList(Len1, LeftBin1, []),
+	{tlistinteger, V1};
+decodeBin(30, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deNumberList(Len1, LeftBin1, []),
+	{tlistnumber, V1};
+decodeBin(31, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deFloatList(Len1, LeftBin1, []),
+	{tlistfloat, V1};
+decodeBin(32, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deDoubleList(Len1, LeftBin1, []),
+	{tlistdouble, V1};
+decodeBin(33, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deStringList(Len1, LeftBin1, []),
+	{tliststring, V1};
+decodeBin(34, LeftBin0) ->
+	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	{V1, LeftBin2} = deRecordList(Len1, 5, LeftBin1, []),
+	{tlistunion, V1};
+decodeBin(35, LeftBin0) ->
+	<<Bool1:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
+	case Bool1 =:= 1 of
+		true ->
+			V1 = true;
+		_ ->
+			V1 = false
+	end,
+	<<V2:8/big-signed, V3:8/big-unsigned, V4:16/big-signed, V5:16/big-unsigned, V6:32/big-signed, V7:32/big-unsigned, V8:64/big-signed, V9:64/big-unsigned, IntBits1:8, V10:IntBits1/big-signed, IntBits2:8, V11:IntBits2/big-signed, IntBits3:8, V12:IntBits3/big-signed, IntBits4:8, V13:IntBits4/big-signed, IntBits5:8, V14:IntBits5/big-signed, IntBits6:8, V15:IntBits6/big-signed, IntBits7:8, V16:IntBits7/big-signed, IntBits8:8, V17:IntBits8/big-signed, LeftBin2/binary>> = LeftBin1,
+	<<NumBits1:8, LeftBin3/binary>> = LeftBin2,
+	case NumBits1 of
+		33-> 
+			<<V18:32/big-float, LeftBin4/binary>> = LeftBin3;
+		65 ->
+			<<V18:64/big-float, LeftBin4/binary>> = LeftBin3;
+		_ ->
+			<<V18:NumBits1/big-signed, LeftBin4/binary>> = LeftBin3
+	end,
+	<<NumBits2:8, LeftBin5/binary>> = LeftBin4,
+	case NumBits2 of
+		33-> 
+			<<V19:32/big-float, LeftBin6/binary>> = LeftBin5;
+		65 ->
+			<<V19:64/big-float, LeftBin6/binary>> = LeftBin5;
+		_ ->
+			<<V19:NumBits2/big-signed, LeftBin6/binary>> = LeftBin5
+	end,
+	<<NumBits3:8, LeftBin7/binary>> = LeftBin6,
+	case NumBits3 of
+		33-> 
+			<<V20:32/big-float, LeftBin8/binary>> = LeftBin7;
+		65 ->
+			<<V20:64/big-float, LeftBin8/binary>> = LeftBin7;
+		_ ->
+			<<V20:NumBits3/big-signed, LeftBin8/binary>> = LeftBin7
+	end,
+	<<NumBits4:8, LeftBin9/binary>> = LeftBin8,
+	case NumBits4 of
+		33-> 
+			<<V21:32/big-float, LeftBin10/binary>> = LeftBin9;
+		65 ->
+			<<V21:64/big-float, LeftBin10/binary>> = LeftBin9;
+		_ ->
+			<<V21:NumBits4/big-signed, LeftBin10/binary>> = LeftBin9
+	end,
+	<<NumBits5:8, LeftBin11/binary>> = LeftBin10,
+	case NumBits5 of
+		33-> 
+			<<V22:32/big-float, LeftBin12/binary>> = LeftBin11;
+		65 ->
+			<<V22:64/big-float, LeftBin12/binary>> = LeftBin11;
+		_ ->
+			<<V22:NumBits5/big-signed, LeftBin12/binary>> = LeftBin11
+	end,
+	<<NumBits6:8, LeftBin13/binary>> = LeftBin12,
+	case NumBits6 of
+		33-> 
+			<<V23:32/big-float, LeftBin14/binary>> = LeftBin13;
+		65 ->
+			<<V23:64/big-float, LeftBin14/binary>> = LeftBin13;
+		_ ->
+			<<V23:NumBits6/big-signed, LeftBin14/binary>> = LeftBin13
+	end,
+	<<NumBits7:8, LeftBin15/binary>> = LeftBin14,
+	case NumBits7 of
+		33-> 
+			<<V24:32/big-float, LeftBin16/binary>> = LeftBin15;
+		65 ->
+			<<V24:64/big-float, LeftBin16/binary>> = LeftBin15;
+		_ ->
+			<<V24:NumBits7/big-signed, LeftBin16/binary>> = LeftBin15
+	end,
+	<<NumBits8:8, LeftBin17/binary>> = LeftBin16,
+	case NumBits8 of
+		33-> 
+			<<V25:32/big-float, LeftBin18/binary>> = LeftBin17;
+		65 ->
+			<<V25:64/big-float, LeftBin18/binary>> = LeftBin17;
+		_ ->
+			<<V25:NumBits8/big-signed, LeftBin18/binary>> = LeftBin17
+	end,
+	<<NumBits9:8, LeftBin19/binary>> = LeftBin18,
+	case NumBits9 of
+		33-> 
+			<<V26:32/big-float, LeftBin20/binary>> = LeftBin19;
+		65 ->
+			<<V26:64/big-float, LeftBin20/binary>> = LeftBin19;
+		_ ->
+			<<V26:NumBits9/big-signed, LeftBin20/binary>> = LeftBin19
+	end,
+	<<NumBits10:8, LeftBin21/binary>> = LeftBin20,
+	case NumBits10 of
+		33-> 
+			<<V27:32/big-float, LeftBin22/binary>> = LeftBin21;
+		65 ->
+			<<V27:64/big-float, LeftBin22/binary>> = LeftBin21;
+		_ ->
+			<<V27:NumBits10/big-signed, LeftBin22/binary>> = LeftBin21
+	end,
+	<<V28:32/big-float, V29:64/big-float, LeftBin23/binary>> = LeftBin22,
+	<<Len1:16/big-unsigned, V30:Len1/binary, LeftBin24/binary>> = LeftBin23,
+	<<Len2:16/big-unsigned, V31:Len2/binary, LeftBin25/binary>> = LeftBin24,
+	<<IsUndef1:8/big-unsigned, LeftBin26/binary>> = LeftBin25,
+	case IsUndef1 of
+		0 ->
+			V32 = undefined,
+			LeftBin27 = LeftBin26 ;
+		_ ->
+			{V32, LeftBin27} = decodeRec(5, LeftBin26)
+	end,
+	<<Len3:16/big-unsigned, LeftBin28/binary>> = LeftBin27,
+	{V33, LeftBin29} = deBoolList(Len3, LeftBin28, []),
+	<<Len4:16/big-unsigned, LeftBin30/binary>> = LeftBin29,
+	{V34, LeftBin31} = deInt8List(Len4, LeftBin30, []),
+	<<Len5:16/big-unsigned, LeftBin32/binary>> = LeftBin31,
+	{V35, LeftBin33} = deUint8List(Len5, LeftBin32, []),
+	<<Len6:16/big-unsigned, LeftBin34/binary>> = LeftBin33,
+	{V36, LeftBin35} = deInt16List(Len6, LeftBin34, []),
+	<<Len7:16/big-unsigned, LeftBin36/binary>> = LeftBin35,
+	{V37, LeftBin37} = deUint16List(Len7, LeftBin36, []),
+	<<Len8:16/big-unsigned, LeftBin38/binary>> = LeftBin37,
+	{V38, LeftBin39} = deInt32List(Len8, LeftBin38, []),
+	<<Len9:16/big-unsigned, LeftBin40/binary>> = LeftBin39,
+	{V39, LeftBin41} = deUint32List(Len9, LeftBin40, []),
+	<<Len10:16/big-unsigned, LeftBin42/binary>> = LeftBin41,
+	{V40, LeftBin43} = deInt64List(Len10, LeftBin42, []),
+	<<Len11:16/big-unsigned, LeftBin44/binary>> = LeftBin43,
+	{V41, LeftBin45} = deUint64List(Len11, LeftBin44, []),
+	<<Len12:16/big-unsigned, LeftBin46/binary>> = LeftBin45,
+	{V42, LeftBin47} = deIntegerList(Len12, LeftBin46, []),
+	<<Len13:16/big-unsigned, LeftBin48/binary>> = LeftBin47,
+	{V43, LeftBin49} = deIntegerList(Len13, LeftBin48, []),
+	<<Len14:16/big-unsigned, LeftBin50/binary>> = LeftBin49,
+	{V44, LeftBin51} = deIntegerList(Len14, LeftBin50, []),
+	<<Len15:16/big-unsigned, LeftBin52/binary>> = LeftBin51,
+	{V45, LeftBin53} = deIntegerList(Len15, LeftBin52, []),
+	<<Len16:16/big-unsigned, LeftBin54/binary>> = LeftBin53,
+	{V46, LeftBin55} = deNumberList(Len16, LeftBin54, []),
+	<<Len17:16/big-unsigned, LeftBin56/binary>> = LeftBin55,
+	{V47, LeftBin57} = deNumberList(Len17, LeftBin56, []),
+	<<Len18:16/big-unsigned, LeftBin58/binary>> = LeftBin57,
+	{V48, LeftBin59} = deNumberList(Len18, LeftBin58, []),
+	<<Len19:16/big-unsigned, LeftBin60/binary>> = LeftBin59,
+	{V49, LeftBin61} = deNumberList(Len19, LeftBin60, []),
+	<<Len20:16/big-unsigned, LeftBin62/binary>> = LeftBin61,
+	{V50, LeftBin63} = deNumberList(Len20, LeftBin62, []),
+	<<Len21:16/big-unsigned, LeftBin64/binary>> = LeftBin63,
+	{V51, LeftBin65} = deNumberList(Len21, LeftBin64, []),
+	<<Len22:16/big-unsigned, LeftBin66/binary>> = LeftBin65,
+	{V52, LeftBin67} = deFloatList(Len22, LeftBin66, []),
+	<<Len23:16/big-unsigned, LeftBin68/binary>> = LeftBin67,
+	{V53, LeftBin69} = deDoubleList(Len23, LeftBin68, []),
+	<<Len24:16/big-unsigned, LeftBin70/binary>> = LeftBin69,
+	{V54, LeftBin71} = deStringList(Len24, LeftBin70, []),
+	<<Len25:16/big-unsigned, LeftBin72/binary>> = LeftBin71,
+	{V55, LeftBin73} = deRecordList(Len25, 5, LeftBin72, []),
+	{allType, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40, V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53, V54, V55};
+decodeBin(1001, LeftBin0) ->
+	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
+	<<Len2:16/big-unsigned, V3:Len2/binary, LeftBin3/binary>> = LeftBin2,
+	<<Len3:16/big-unsigned, LeftBin4/binary>> = LeftBin3,
+	{V4, LeftBin5} = deRecordList(Len3, 2, LeftBin4, []),
+	{person1, V1, V2, V3, V4};
+decodeBin(_, _) ->
+	{{}, <<>>}.
 
