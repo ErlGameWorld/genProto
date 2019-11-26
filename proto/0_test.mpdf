@@ -57,6 +57,14 @@ tuint16{
 tint32{
     int32 int1;
     int32 int2;
+    int32 int3;
+    int32 int4;
+    int32 int5;
+    int32 int6;
+    int32 int7;
+    int32 int8;
+    int32 int9;
+    int32 int10;
 }
 
 tuint32{

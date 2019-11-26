@@ -250,12 +250,13 @@ genEncodeRec({MsgName, MsgId, FieldList}, IsForBin) ->
          {Index - 1, ", V" ++ integer_to_list(Index) ++ StrAcc}
       end,
    {_, TemStr} = lists:foldr(FunHead, {FieldLen, "}) ->\n\t"}, FieldList),
-   case IsForBin of
-      true ->
-         HeadStr = "encode({" ++ MsgName ++ TemStr;
-      _ ->
-         HeadStr = "encodeRec({" ++ MsgName ++ TemStr
-   end,
+   HeadStr =
+      case IsForBin of
+         true ->
+            "encode({" ++ MsgName ++ TemStr;
+         _ ->
+            "encodeRec({" ++ MsgName ++ TemStr
+      end,
 
    FunBody =
       fun({FieldType, _FieldName}, {Index, PStrAcc}) ->
@@ -684,7 +685,7 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
       MessageId1 > MessageId2 end, SProtoList),
 
    FunSpell =
-      fun({MsgName, MsgId, FieldList} = MsgInfo, {MsgHrlAcc, MsgIdAcc, MsgEncodeAcc, MsgDecodeAcc}) ->
+      fun({MsgName, _MsgId, FieldList} = MsgInfo, {MsgHrlAcc, _MsgIdAcc, MsgEncodeAcc, MsgDecodeAcc}) ->
          %% gen hrl str
          Len = erlang:length(FieldList),
          {_, Len, LastFieldStr} = lists:foldr(fun genMsgHrl/2, {Len, Len, ""}, FieldList),

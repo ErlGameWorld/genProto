@@ -1,0 +1,33 @@
+message test {
+ 	required string aa = 1;
+ }
+
+message phoneNumber {
+   	required test number = 1;
+   	required int32 type  = 2;
+}
+
+message person {
+  	required string name = 1;
+  	required int32 integer = 2;
+  	optional string email = 3;
+  	repeated phoneNumber phone = 4;
+}
+
+message addressBook {
+	repeated  person person1 = 1;
+	repeated  person others = 2;
+}
+
+message tint32 {
+    required int32 int1 = 1;
+    required int32 int2 = 2;
+    required int32 int3 = 3;
+    required int32 int4 = 4;
+    required int32 int5 = 5;
+    required int32 int6 = 6;
+    required int32 int7 = 7;
+    required int32 int8 = 8;
+    required int32 int9 = 9;
+    required int32 int10 = 10;
+}

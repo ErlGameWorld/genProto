@@ -112,4 +112,175 @@ Build
 ### 关于消息接收转发解码和发送
 	erlang通常会将接收到的消息由网关进程转发给其他工作进程， 建议先匹配消息id, 然后转发二进制消息到工作进程，然后由工作进程解码再处理
 	同时广播消息可先编码成二进制之后再广播， 避免重复编码
+	
+### 简单性能测评
+	主要和gpb做简单对比测试
+    gpb测试相关文件在test/gpb目录下
+    测试协议：
+    gpb:
+    message test {
+     	required string aa = 1;
+     }
+    
+    message phoneNumber {
+       	required test number = 1;
+       	required int32 type  = 2;
+    }
+    
+    message person {
+      	required string name = 1;
+      	required int32 integer = 2;
+      	optional string email = 3;
+      	repeated phoneNumber phone = 4;
+    }
+    
+    message addressBook {
+    	repeated  person person1 = 1;
+    	repeated  person others = 2;
+    }
+    
+    message tint32 {
+        required int32 int1 = 1;
+        required int32 int2 = 2;
+        required int32 int3 = 3;
+        required int32 int4 = 4;
+        required int32 int5 = 5;
+        required int32 int6 = 6;
+        required int32 int7 = 7;
+        required int32 int8 = 8;
+        required int32 int9 = 9;
+        required int32 int10 = 10;
+    }
+    genProto用的协议:
+    
+    test {
+    	string aa;
+    }
+    
+    phoneNumber{
+        test number;
+        int32 type;
+    }
+    
+    person{
+    	string name;
+    	int32 id;
+    	string email;
+    	list[phoneNumber] phone;
+    }
+    
+    addressBook {
+        list[person] person;
+    	list[person] other;
+    }
+    
+    tint32{
+        int32 int1;
+        int32 int2;
+        int32 int3;
+        int32 int4;
+        int32 int5;
+        int32 int6;
+        int32 int7;
+        int32 int8;
+        int32 int9;
+        int32 int10;
+    }
+    测试运行三次 每次100万次循环
+    tint32 gpb-------->>
+        tint32 encode:
+            > timer:tc(mytest, encode_int32, [1000000]).
+            {9625000,ok}
+            > timer:tc(mytest, encode_int32, [1000000]).
+            {9000000,ok}
+            > timer:tc(mytest, encode_int32, [1000000]).
+            {9969000,ok}
+            
+        tin32 decode:
+            > timer:tc(mytest, decode_int32, [1000000]).
+            {6217994,ok}
+            > timer:tc(mytest, decode_int32, [1000000]).
+            {6187993,ok}
+            > timer:tc(mytest, decode_int32, [1000000]).
+            {6265994,ok}
+            
+        size:
+            > BTInt32 = mytest:decode_int32(1).
+            <<8,1,16,255,255,255,255,255,255,255,255,255,1,24,128,1,
+              32,128,255,255,255,255,255,255,255,255,1,40,128,...>>
+            31> byte_size(BTInt32).              
+            74
+    tint32 genProto ------->>
+        tint32 encode:
+            > timer:tc(test, encode_int32, [1000000]).
+            {328999,ok}
+            > timer:tc(test, encode_int32, [1000000]).
+            {328000,ok}
+            > timer:tc(test, encode_int32, [1000000]).
+            {344000,ok}
+        
+        tint32 decode:
+            > timer:tc(test, decode_int32, [1000000]).
+            {328000,ok}
+            > timer:tc(test, decode_int32, [1000000]).
+            {328000,ok}
+            > timer:tc(test, decode_int32, [1000000]).
+            {329000,ok}
+            
+        size:
+            > BTInt32 = test:decode_int32(1).  
+            <<0,11,0,0,0,1,255,255,255,255,0,0,0,128,255,255,255,128,
+              0,1,0,0,255,255,0,0,125,43,117,...>>
+            > byte_size(BTInt32).
+            42
+    ===============================================================================
+    ===============================================================================        
+    addressBook gpb-------->>
+        addressBook encode:
+            > timer:tc(mytest, encode_addressBook, [1000000]).
+            {9108990,ok}
+            > timer:tc(mytest, encode_addressBook, [1000000]).
+            {8999991,ok}
+            > timer:tc(mytest, encode_addressBook, [1000000]).
+            {9031991,ok}
+    
+        addressBook decode:
+            > timer:tc(mytest, decode_addressBook, [1000000]).
+            {5702995,ok}
+            > timer:tc(mytest, decode_addressBook, [1000000]).
+            {5764994,ok}
+            > timer:tc(mytest, decode_addressBook, [1000000]).
+            {5718995,ok}
+        size:
+            > BAddr = mytest:decode_addressBook(1).
+            <<10,43,10,5,65,108,105,99,101,16,144,78,34,15,10,11,10,9,
+              49,50,51,52,53,54,55,56,57,16,1,...>>
+            > byte_size(BAddr).                    
+            75
+    addressBook genProto -------->>
+        addressBook encode:
+            > timer:tc(test, encode_addressBook, [1000000]).
+            {4186995,ok}
+            > timer:tc(test, encode_addressBook, [1000000]).
+            {4202996,ok}
+            > timer:tc(test, encode_addressBook, [1000000]).
+            {4202996,ok}
+        addressBook decode:
+            > timer:tc(test, decode_addressBook, [1000000]).
+            {2749997,ok}
+            > timer:tc(test, decode_addressBook, [1000000]).
+            {2812997,ok}
+            > timer:tc(test, decode_addressBook, [1000000]).
+            {2812997,ok}
+        size:
+            BAddr = test:decode_addressBook(1).  
+            <<0,4,0,2,0,5,65,108,105,99,101,0,0,39,16,0,0,0,2,1,0,9,
+              49,50,51,52,53,54,55,...>>
+            67> byte_size(BAddr). 
+            83
+
+
+
+    
+
     

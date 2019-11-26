@@ -208,44 +208,6 @@ deRecordList(N, MsgId, MsgBin, RetList) ->
    {Tuple, LeftBin} = decodeRec(MsgId, MsgBin),
    deRecordList(N - 1, MsgId, LeftBin, [Tuple | RetList]).
 
-getMsgId(test)-> 1;
-getMsgId(phoneNumber)-> 2;
-getMsgId(person)-> 3;
-getMsgId(addressBook)-> 4;
-getMsgId(union)-> 5;
-getMsgId(tbool)-> 6;
-getMsgId(tint8)-> 7;
-getMsgId(tuint8)-> 8;
-getMsgId(tint16)-> 9;
-getMsgId(tuint16)-> 10;
-getMsgId(tint32)-> 11;
-getMsgId(tuint32)-> 12;
-getMsgId(tint64)-> 13;
-getMsgId(tuint64)-> 14;
-getMsgId(tinteger)-> 15;
-getMsgId(tnumber)-> 16;
-getMsgId(tfloat)-> 17;
-getMsgId(tdouble)-> 18;
-getMsgId(tstring)-> 19;
-getMsgId(tlistbool)-> 20;
-getMsgId(tlistint8)-> 21;
-getMsgId(tlistuint8)-> 22;
-getMsgId(tlistint16)-> 23;
-getMsgId(tlistuint16)-> 24;
-getMsgId(tlistint32)-> 25;
-getMsgId(tlistuint32)-> 26;
-getMsgId(tlistint64)-> 27;
-getMsgId(tlistuint64)-> 28;
-getMsgId(tlistinteger)-> 29;
-getMsgId(tlistnumber)-> 30;
-getMsgId(tlistfloat)-> 31;
-getMsgId(tlistdouble)-> 32;
-getMsgId(tliststring)-> 33;
-getMsgId(tlistunion)-> 34;
-getMsgId(allType)-> 35;
-getMsgId(person1)-> 1001;
-getMsgId(_) -> 0.
-
 encodeRec({test, V1}) ->
 	[?string(V1)];
 encodeRec({phoneNumber, V1, V2}) ->
@@ -277,8 +239,8 @@ encode({tint16, V1, V2}) ->
 	[<<9:16/big-unsigned>>, ?int16(V1), ?int16(V2)];
 encode({tuint16, V1, V2}) ->
 	[<<10:16/big-unsigned>>, ?uint16(V1), ?uint16(V2)];
-encode({tint32, V1, V2}) ->
-	[<<11:16/big-unsigned>>, ?int32(V1), ?int32(V2)];
+encode({tint32, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10}) ->
+	[<<11:16/big-unsigned>>, ?int32(V1), ?int32(V2), ?int32(V3), ?int32(V4), ?int32(V5), ?int32(V6), ?int32(V7), ?int32(V8), ?int32(V9), ?int32(V10)];
 encode({tuint32, V1, V2}) ->
 	[<<12:16/big-unsigned>>, ?uint32(V1), ?uint32(V2)];
 encode({tint64, V1, V2}) ->
@@ -417,8 +379,8 @@ decodeBin(10, LeftBin0) ->
 	<<V1:16/big-unsigned, V2:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	{tuint16, V1, V2};
 decodeBin(11, LeftBin0) ->
-	<<V1:32/big-signed, V2:32/big-signed, LeftBin1/binary>> = LeftBin0,
-	{tint32, V1, V2};
+	<<V1:32/big-signed, V2:32/big-signed, V3:32/big-signed, V4:32/big-signed, V5:32/big-signed, V6:32/big-signed, V7:32/big-signed, V8:32/big-signed, V9:32/big-signed, V10:32/big-signed, LeftBin1/binary>> = LeftBin0,
+	{tint32, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10};
 decodeBin(12, LeftBin0) ->
 	<<V1:32/big-unsigned, V2:32/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	{tuint32, V1, V2};

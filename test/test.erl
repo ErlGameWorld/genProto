@@ -3,6 +3,86 @@
 -include("protoMsg.hrl").
 -compile(export_all).
 
+encode_int32(N) ->
+   TT = #tint32{int1 = 1, int2 = -1, int3 = 128, int4 = -128, int5 = 65536,
+      int6 = -65536, int7 = 2100000000, int8 = -2100000000, int9 = 678665, int10 = -678665},
+   tt1(N, TT).
+
+tt1(0, TT) ->
+   ok;
+tt1(N, TT) ->
+   protoMsg:encode(TT),
+   tt1(N - 1, TT).
+
+decode_int32(N) ->
+   TT = #tint32{int1 = 1, int2 = -1, int3 = 128, int4 = -128, int5 = 65536,
+      int6 = -65536, int7 = 2100000000, int8 = -2100000000, int9 = 678665, int10 = -678665},
+   Bin = protoMsg:encode(TT),
+   tt2(N, iolist_to_binary(Bin)).
+
+tt2(0, Bin) ->
+   Bin;
+tt2(N, Bin) ->
+   protoMsg:decode(Bin),
+   tt2(N - 1, Bin).
+
+encode_addressBook(N) ->
+   Add = #addressBook{
+      person = [
+         #person{
+            name = "Alice",
+            id = 10000,
+            phone = [
+               #phoneNumber{number = #test{aa = "123456789"}, type = 1},
+               #phoneNumber{number = #test{aa = "87654321"}, type = 2}
+            ]
+         },
+         #person{
+            name = "Bob",
+            id = 20000,
+            phone = [
+               #phoneNumber{number = #test{aa = "01234567890"}, type = 3}
+            ]
+         }
+      ]
+   },
+   tt3(N, Add).
+
+tt3(0, Add) ->
+   ok;
+tt3(N, Add) ->
+   protoMsg:encode(Add),
+   tt3(N - 1, Add).
+
+
+decode_addressBook(N) ->
+   AddressBook = #addressBook{
+      person = [
+         #person{
+            name = "Alice",
+            id = 10000,
+            phone = [
+               #phoneNumber{number = #test{aa = "123456789"}, type = 1},
+               #phoneNumber{number = #test{aa = "87654321"}, type = 2}
+            ]
+         },
+         #person{
+            name = "Bob",
+            id = 20000,
+            phone = [
+               #phoneNumber{number = #test{aa = "01234567890"}, type = 3}
+            ]
+         }
+      ]
+   },
+   Bin = protoMsg:encode(AddressBook),
+   tt4(N, iolist_to_binary(Bin)).
+tt4(0, Bin) ->
+   Bin;
+tt4(N, Bin) ->
+   protoMsg:decode(Bin),
+   tt4(N - 1, Bin).
+
 test1() ->
    protoMsg:decode(iolist_to_binary(protoMsg:encode(#tbool{bool = true}))).
 
@@ -19,6 +99,8 @@ test32() ->
 
 test41() ->
    protoMsg:decode(iolist_to_binary(protoMsg:encode(#tint32{int1 = 12343434, int2 = -34434322}))).
+
+
 test42() ->
    protoMsg:decode(iolist_to_binary(protoMsg:encode(#tuint32{int1 = 432444343, int2 = 432443433}))).
 
@@ -29,12 +111,13 @@ test52() ->
 
 tt6(N) ->
    Bin = iolist_to_binary(protoMsg:encode(#tinteger{int1 = -1, int2 = 1, int3 = 128, int4 = -128, int5 = -3244232, int6 = 432423432, int7 = -43434343434434, int8 = 432424242434})),
-   test6(N, Bin).
+   <<_MsgId:16/big, MsgBin/binary>> = Bin,
+   test6(N, MsgBin).
 
 test6(0, Bin) ->
    io:format("IMY******111 ~p~n", [protoMsg:decode(Bin)]);
 test6(N, Bin) ->
-   protoMsg:decode(Bin),
+   protoMsg:decodeBin(15, Bin),
    test6(N - 1, Bin).
 
 tt66(N) ->
@@ -48,9 +131,10 @@ test66(0, Bin) ->
    io:format("IMY******111 ~p~n", [A]);
 test66(N, Bin) ->
    <<_MsgId:16/big, MsgBin/binary>> = Bin,
-   <<IntBits1:8, Int1:IntBits1/big-signed, IntBits2:8, Int2:IntBits2/big-signed, IntBits3:8, Int3:IntBits3/big-signed, IntBits4:8, Int4:IntBits4/big-signed, IntBits5:8, Int5:IntBits5/big-signed, IntBits6:8, Int6:IntBits6/big-signed, IntBits7:8, Int7:IntBits7/big-signed, IntBits8:8, Int8:IntBits8/big-signed, LeftBin/binary>> = MsgBin,
-   MsgRec = {tinteger, Int1, Int2, Int3, Int4, Int5, Int6, Int7, Int8},
-   {MsgRec,LeftBin},
+   %% <<IntBits1:8, Int1:IntBits1/big-signed, IntBits2:8, Int2:IntBits2/big-signed, IntBits3:8, Int3:IntBits3/big-signed, IntBits4:8, Int4:IntBits4/big-signed, IntBits5:8, Int5:IntBits5/big-signed, IntBits6:8, Int6:IntBits6/big-signed, IntBits7:8, Int7:IntBits7/big-signed, IntBits8:8, Int8:IntBits8/big-signed, LeftBin/binary>> = MsgBin,
+   %% {tinteger, Int1, Int2, Int3, Int4, Int5, Int6, Int7, Int8},
+   <<IntBits1:8, V1:IntBits1/big-signed, IntBits2:8, V2:IntBits2/big-signed, IntBits3:8, V3:IntBits3/big-signed, IntBits4:8, V4:IntBits4/big-signed, IntBits5:8, V5:IntBits5/big-signed, IntBits6:8, V6:IntBits6/big-signed, IntBits7:8, V7:IntBits7/big-signed, IntBits8:8, V8:IntBits8/big-signed, LeftBin1/binary>> = MsgBin,
+   {tinteger, V1, V2, V3, V4, V5, V6, V7, V8},
    test66(N - 1, Bin).
 
 tt67(N) ->
@@ -335,8 +419,8 @@ tet([YY | T]) ->
    ok,
    tet(T).
 
-tt1(0) ->
-   AddressBook = #addressBook{
+ttt11(N) ->
+   Add = #addressBook{
       person = [
          #person{
             name = "Alice",
@@ -355,31 +439,15 @@ tt1(0) ->
          }
       ]
    },
-   Bin = protoMsg:encode(AddressBook);
-tt1(N) ->
-   tt1(),
-   tt1(N - 1).
+   ttt11(N, Add).
 
-tt1() ->
-   AddressBook = #addressBook{
-      person = [
-         #person{
-            name = "Alice",
-            id = 10000,
-            phone = [
-               #phoneNumber{number = #test{aa = "123456789"}, type = 1},
-               #phoneNumber{number = #test{aa = "87654321"}, type = 2}
-            ]
-         },
-         #person{
-            name = "Bob",
-            id = 20000,
-            phone = [
-               #phoneNumber{number = #test{aa = "01234567890"}, type = 3}
-            ]
-         }
-      ]
-   },
+ttt11(0, Add) ->
+   ok;
+ttt11(N, Add) ->
+   protoMsg:encode(Add),
+   ttt11(N - 1, Add).
+
+%%tt1(Add) ->
    %"others" => [
    %	#{
    %		"name" => "Carol",
@@ -391,7 +459,7 @@ tt1() ->
    %]
    %AddressBook = #person{name = "1232134", id = 11111,email = "aaa" ,phone = [#phoneNumber{}] },
    %AddressBook = #phoneNumber{number =#test{aa = "dffsaf"},type = 12 },
-   Bin = protoMsg:encode(AddressBook).
+   %%protoMsg:encode(Add).
 %ok = file:write_file("fff.bin", Bin),
 %print_bin(Bin),
 %Bin = protoCode:encode(AddressBook),

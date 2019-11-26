@@ -61,6 +61,14 @@
 -record(tint32 ,{
 	int1 = 0 :: int32()
 	, int2 = 0 :: int32()
+	, int3 = 0 :: int32()
+	, int4 = 0 :: int32()
+	, int5 = 0 :: int32()
+	, int6 = 0 :: int32()
+	, int7 = 0 :: int32()
+	, int8 = 0 :: int32()
+	, int9 = 0 :: int32()
+	, int10 = 0 :: int32()
 }).
 -record(tuint32 ,{
 	int1 = 0 :: uint32()
