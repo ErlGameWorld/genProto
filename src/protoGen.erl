@@ -21,7 +21,6 @@ protoHrlHeader() ->
 
 protoErlHeader() ->
 "-module(protoMsg).\n\n
-
 -compile([nowarn_unused_vars]).
 
 -export([encode/1, decode/1, encodeRec/1, decodeBin/2]).
@@ -135,7 +134,7 @@ deBoolList(N, MsgBin, RetList) ->
    end.
 
 deInt8List(0, MsgBin, RetList) ->
-   {RetList, MsgBin};
+   {lists:reverse(RetList), MsgBin};
 deInt8List(N, MsgBin, RetList) ->
    <<Int:8/big-signed, LeftBin/binary>> = MsgBin,
    deInt8List(N - 1, LeftBin, [Int | RetList]).
@@ -351,7 +350,7 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
                UseLeftBinStr2 = useIndexStr(pd_leftBin),
                BoolStr = "\t<<Bool" ++ UseBoolStr ++ ":8/big-unsigned, LeftBin" ++ UseLeftBinStr2 ++ "/binary>> = LeftBin" ++ GetLeftBinStr2 ++ ",\n",
                UseVStr = useIndexStr(pd_v),
-               VStr = "\tcase Bool" ++ UseBoolStr ++ " =:= 1 of\n\t\ttrue ->\n\t\t\tV" ++ UseVStr ++" = true;\n\t\t_ ->\n\t\t\tV" ++ UseVStr ++" = false\n\tend,\n",
+               VStr = "\tcase Bool" ++ UseBoolStr ++ " =:= 1 of\n\t\ttrue ->\n\t\t\tV" ++ UseVStr ++ " = true;\n\t\t_ ->\n\t\t\tV" ++ UseVStr ++ " = false\n\tend,\n",
                {false, StrAcc ++ TemStr ++ BoolStr ++ VStr};
             "int8" ->
                TemStr =
@@ -719,7 +718,7 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
          EncodeStr = genEncodeRec(MsgInfo, false),
          resetPd(),
          DecodeStr = genDecodeBin(MsgInfo, SortedSProtoList, false),
-         {[EncodeStr |SubEncodeAcc], [DecodeStr | SubDecodeAcc]}
+         {[EncodeStr | SubEncodeAcc], [DecodeStr | SubDecodeAcc]}
       end,
    {MsgEncodeRecStr, MsgDecodeRecStr} = lists:foldl(FunSubRec, {["encodeRec(_) ->\n\t[].\n\n"], ["decodeRec(_, _) ->\n\t{{}, <<>>}.\n\n"]}, SortedSubRecList),
 

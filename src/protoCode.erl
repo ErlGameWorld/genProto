@@ -1,8 +1,6 @@
 -module(protoCode).
 
 -compile([export_all, nowarn_unused_function, nowarn_export_all]).
-
-
 -export([encode/1, decode/1, encodeRec/1, decodeBin/2]).
 
 -define(min8, -128).
@@ -114,7 +112,7 @@ deBoolList(N, MsgBin, RetList) ->
    end.
 
 deInt8List(0, MsgBin, RetList) ->
-   {RetList, MsgBin};
+   {lists:reverse(RetList), MsgBin};
 deInt8List(N, MsgBin, RetList) ->
    <<Int:8/big-signed, LeftBin/binary>> = MsgBin,
    deInt8List(N - 1, LeftBin, [Int | RetList]).
