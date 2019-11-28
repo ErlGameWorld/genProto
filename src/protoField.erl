@@ -59,12 +59,12 @@ builtRecStr({TypeStr, NameStr}) ->
                [SubTypeStr | _] = re:split(LeftStr, "\\]", [{return, list}]),
                case lists:keyfind(SubTypeStr, 1, ?TypeValue) of
                   {SubTypeStr, _DefSubValueStr, DefSubTypeStr} ->
-                     NameStr ++ " = [] " ++ " :: [" ++ DefSubTypeStr ++ "]\n";
+                     NameStr ++ " = [] " ++ ":: [" ++ DefSubTypeStr ++ "]\n";
                   _ ->
-                     NameStr ++ " = [] " ++ " :: [#" ++ SubTypeStr ++ "{}]\n"
+                     NameStr ++ " = [] " ++ ":: [#" ++ SubTypeStr ++ "{}]\n"
                end;
             _ ->
-               NameStr ++ " = undefined " ++ " :: #" ++ TypeStr ++ "{}\n"
+               NameStr ++ " = undefined " ++ ":: #" ++ TypeStr ++ "{}\n"
          end
    end.
 
