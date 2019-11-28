@@ -1,12 +1,12 @@
 -opaque int8() :: -128..127.
-   -opaque int16() :: -32768..32767.
-   -opaque int32() :: -2147483648..2147483647.
-   -opaque int64() :: -9223372036854775808..9223372036854775807.
-   -opaque uint8() :: 0..255.
-   -opaque uint16() :: 0..65536.
-   -opaque uint32() :: 0..4294967295.
-   -opaque uint64() :: 0..18446744073709551615.
-   -opaque double() :: float().
+-opaque int16() :: -32768..32767.
+-opaque int32() :: -2147483648..2147483647.
+-opaque int64() :: -9223372036854775808..9223372036854775807.
+-opaque uint8() :: 0..255.
+-opaque uint16() :: 0..65536.
+-opaque uint32() :: 0..4294967295.
+-opaque uint64() :: 0..18446744073709551615.
+-opaque double() :: float().
 
 -define(ERR1, 1).		%% 辅导费
 -define(ERR2, 2).		%% 444 
@@ -18,47 +18,47 @@
 -define(ERR6, 1001).		%% dfff
 
 
--record(test ,{
+-record(test, {
 	aa = "" :: string()
 }).
--record(phoneNumber ,{
-	number = undefined  :: #test{}
+-record(phoneNumber, {
+	number = undefined :: #test{}
 	, type = 0 :: int32()
 }).
--record(person ,{
+-record(person, {
 	name = "" :: string()
 	, id = 0 :: int32()
 	, email = "" :: string()
-	, phone = []  :: [#phoneNumber{}]
+	, phone = [] :: [#phoneNumber{}]
 }).
--record(addressBook ,{
-	person = []  :: [#person{}]
-	, other = []  :: [#person{}]
+-record(addressBook, {
+	person = [] :: [#person{}]
+	, other = [] :: [#person{}]
 }).
--record(union ,{
+-record(union, {
 	test = "" :: string()
 	, type = 0 :: int32()
 }).
--record(tbool ,{
+-record(tbool, {
 	bool = false :: boolean()
 }).
--record(tint8 ,{
+-record(tint8, {
 	int1 = 0 :: int8()
 	, int2 = 0 :: int8()
 }).
--record(tuint8 ,{
+-record(tuint8, {
 	int1 = 0 :: uint8()
 	, int2 = 0 :: uint8()
 }).
--record(tint16 ,{
+-record(tint16, {
 	int1 = 0 :: int16()
 	, int2 = 0 :: int16()
 }).
--record(tuint16 ,{
+-record(tuint16, {
 	int1 = 0 :: uint16()
 	, int2 = 0 :: uint16()
 }).
--record(tint32 ,{
+-record(tint32, {
 	int1 = 0 :: int32()
 	, int2 = 0 :: int32()
 	, int3 = 0 :: int32()
@@ -70,19 +70,19 @@
 	, int9 = 0 :: int32()
 	, int10 = 0 :: int32()
 }).
--record(tuint32 ,{
+-record(tuint32, {
 	int1 = 0 :: uint32()
 	, int2 = 0 :: uint32()
 }).
--record(tint64 ,{
+-record(tint64, {
 	int1 = 0 :: int64()
 	, int2 = 0 :: int64()
 }).
--record(tuint64 ,{
+-record(tuint64, {
 	int1 = 0 :: uint64()
 	, int2 = 0 :: uint64()
 }).
--record(tinteger ,{
+-record(tinteger, {
 	int1 = 0 :: integer()
 	, int2 = 0 :: integer()
 	, int3 = 0 :: integer()
@@ -92,7 +92,7 @@
 	, int7 = 0 :: integer()
 	, int8 = 0 :: integer()
 }).
--record(tnumber ,{
+-record(tnumber, {
 	int1 = 0 :: number()
 	, int2 = 0 :: number()
 	, int3 = 0 :: number()
@@ -104,64 +104,64 @@
 	, float1 = 0 :: number()
 	, float2 = 0 :: number()
 }).
--record(tfloat ,{
+-record(tfloat, {
 	int1 = 0.0 :: float()
 	, int2 = 0.0 :: float()
 }).
--record(tdouble ,{
+-record(tdouble, {
 	int1 = 0.0 :: double()
 	, int2 = 0.0 :: double()
 }).
--record(tstring ,{
+-record(tstring, {
 	int1 = "" :: string()
 	, int2 = "" :: string()
 }).
--record(tlistbool ,{
-	int1 = []  :: [boolean()]
+-record(tlistbool, {
+	int1 = [] :: [boolean()]
 }).
--record(tlistint8 ,{
-	int1 = []  :: [int8()]
+-record(tlistint8, {
+	int1 = [] :: [int8()]
 }).
--record(tlistuint8 ,{
-	int1 = []  :: [uint8()]
+-record(tlistuint8, {
+	int1 = [] :: [uint8()]
 }).
--record(tlistint16 ,{
-	int1 = []  :: [int16()]
+-record(tlistint16, {
+	int1 = [] :: [int16()]
 }).
--record(tlistuint16 ,{
-	int1 = []  :: [uint16()]
+-record(tlistuint16, {
+	int1 = [] :: [uint16()]
 }).
--record(tlistint32 ,{
-	int1 = []  :: [int32()]
+-record(tlistint32, {
+	int1 = [] :: [int32()]
 }).
--record(tlistuint32 ,{
-	int1 = []  :: [uint32()]
+-record(tlistuint32, {
+	int1 = [] :: [uint32()]
 }).
--record(tlistint64 ,{
-	int1 = []  :: [int64()]
+-record(tlistint64, {
+	int1 = [] :: [int64()]
 }).
--record(tlistuint64 ,{
-	int1 = []  :: [uint64()]
+-record(tlistuint64, {
+	int1 = [] :: [uint64()]
 }).
--record(tlistinteger ,{
-	int1 = []  :: [integer()]
+-record(tlistinteger, {
+	int1 = [] :: [integer()]
 }).
--record(tlistnumber ,{
-	int1 = []  :: [number()]
+-record(tlistnumber, {
+	int1 = [] :: [number()]
 }).
--record(tlistfloat ,{
-	int1 = []  :: [float()]
+-record(tlistfloat, {
+	int1 = [] :: [float()]
 }).
--record(tlistdouble ,{
-	int1 = []  :: [double()]
+-record(tlistdouble, {
+	int1 = [] :: [double()]
 }).
--record(tliststring ,{
-	int1 = []  :: [string()]
+-record(tliststring, {
+	int1 = [] :: [string()]
 }).
--record(tlistunion ,{
-	int1 = []  :: [#union{}]
+-record(tlistunion, {
+	int1 = [] :: [#union{}]
 }).
--record(allType ,{
+-record(allType, {
 	bool = false :: boolean()
 	, int8 = 0 :: int8()
 	, uint8 = 0 :: uint8()
@@ -193,34 +193,34 @@
 	, double = 0.0 :: double()
 	, string1 = "" :: string()
 	, string2 = "" :: string()
-	, union = undefined  :: #union{}
-	, lbool = []  :: [boolean()]
-	, lint8 = []  :: [int8()]
-	, luint8 = []  :: [uint8()]
-	, lint16 = []  :: [int16()]
-	, luint16 = []  :: [uint16()]
-	, lint32 = []  :: [int32()]
-	, luint32 = []  :: [uint32()]
-	, lint64 = []  :: [int64()]
-	, luint64 = []  :: [uint64()]
-	, linte8 = []  :: [integer()]
-	, linte16 = []  :: [integer()]
-	, linte32 = []  :: [integer()]
-	, linte64 = []  :: [integer()]
-	, lnum8 = []  :: [number()]
-	, lnum16 = []  :: [number()]
-	, lnum32 = []  :: [number()]
-	, lnum64 = []  :: [number()]
-	, lnfloat32 = []  :: [number()]
-	, lnfloat64 = []  :: [number()]
-	, lfloat = []  :: [float()]
-	, ldouble = []  :: [double()]
-	, lstring = []  :: [string()]
-	, lunion = []  :: [#union{}]
+	, union = undefined :: #union{}
+	, lbool = [] :: [boolean()]
+	, lint8 = [] :: [int8()]
+	, luint8 = [] :: [uint8()]
+	, lint16 = [] :: [int16()]
+	, luint16 = [] :: [uint16()]
+	, lint32 = [] :: [int32()]
+	, luint32 = [] :: [uint32()]
+	, lint64 = [] :: [int64()]
+	, luint64 = [] :: [uint64()]
+	, linte8 = [] :: [integer()]
+	, linte16 = [] :: [integer()]
+	, linte32 = [] :: [integer()]
+	, linte64 = [] :: [integer()]
+	, lnum8 = [] :: [number()]
+	, lnum16 = [] :: [number()]
+	, lnum32 = [] :: [number()]
+	, lnum64 = [] :: [number()]
+	, lnfloat32 = [] :: [number()]
+	, lnfloat64 = [] :: [number()]
+	, lfloat = [] :: [float()]
+	, ldouble = [] :: [double()]
+	, lstring = [] :: [string()]
+	, lunion = [] :: [#union{}]
 }).
--record(person1 ,{
+-record(person1, {
 	name = "" :: string()
 	, id = 0 :: int32()
 	, email = "" :: string()
-	, phone = []  :: [#phoneNumber{}]
+	, phone = [] :: [#phoneNumber{}]
 }).

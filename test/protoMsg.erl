@@ -287,12 +287,7 @@ decodeBin(5, LeftBin0) ->
 	{union, V1, V2};
 decodeBin(6, LeftBin0) ->
 	<<Bool1:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	case Bool1 =:= 1 of
-		true ->
-			V1 = true;
-		_ ->
-			V1 = false
-	end,
+	V1 = Bool1 =:= 1,
 	{tbool, V1};
 decodeBin(7, LeftBin0) ->
 	<<V1:8/big-signed, V2:8/big-signed, LeftBin1/binary>> = LeftBin0,
@@ -496,12 +491,7 @@ decodeBin(34, LeftBin0) ->
 	{tlistunion, V1};
 decodeBin(35, LeftBin0) ->
 	<<Bool1:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	case Bool1 =:= 1 of
-		true ->
-			V1 = true;
-		_ ->
-			V1 = false
-	end,
+	V1 = Bool1 =:= 1,
 	<<V2:8/big-signed, V3:8/big-unsigned, V4:16/big-signed, V5:16/big-unsigned, V6:32/big-signed, V7:32/big-unsigned, V8:64/big-signed, V9:64/big-unsigned, IntBits1:8, V10:IntBits1/big-signed, IntBits2:8, V11:IntBits2/big-signed, IntBits3:8, V12:IntBits3/big-signed, IntBits4:8, V13:IntBits4/big-signed, IntBits5:8, V14:IntBits5/big-signed, IntBits6:8, V15:IntBits6/big-signed, IntBits7:8, V16:IntBits7/big-signed, IntBits8:8, V17:IntBits8/big-signed, LeftBin2/binary>> = LeftBin1,
 	<<NumBits1:8, LeftBin3/binary>> = LeftBin2,
 	case NumBits1 of
