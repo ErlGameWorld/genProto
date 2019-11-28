@@ -279,7 +279,12 @@ Build
             67> byte_size(BAddr). 
             83
 
-
+### TODO
+    生成的protoMsg.erl
+    encode 函数参数列表太长时 换行显示
+    encode返回的编码列表参数太多时 换行显示
+    decodeBin simple类型解码列表过长时 换行显示
+    decodeBin 返回元组元素太多时 换行显示
 
     
 
