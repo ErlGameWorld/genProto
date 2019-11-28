@@ -642,3 +642,31 @@ bin_to_hex(<<>>, Acc) ->
 bin_to_hex(Bin, Acc) ->
    <<A:8, Bin2/binary>> = Bin,
    bin_to_hex(Bin2, [A | Acc]).
+
+a1(B) ->
+   Bin = list_to_binary([X rem 256 || X <- lists:seq(1, 10000)]),
+   a1(B, Bin).
+
+a1(0, Bin) ->
+   <<ListBin:6400/big-binary, Left/binary>> = Bin,
+   [X || <<X:32/big-unsigned>> <= ListBin];
+a1(N, Bin) ->
+   <<ListBin:6400/big-binary, Left/binary>> = Bin,
+   A = [X || <<X:32/big-unsigned>> <= ListBin],
+   B = [X || <<X:16/big-unsigned>> <= ListBin],
+   io:format("IMY********** ~p~n", [A == B]),
+   a1(N - 1, Bin).
+
+a2(B) ->
+   Bin = list_to_binary([X rem 256 || X <- lists:seq(1, 10000)]),
+   a2(B, Bin).
+
+a2(0, Bin) ->
+   Len = 200,
+   <<ListBin:Len/big-binary-unit:32, Left/binary>> = Bin,
+   [X  || <<X:32/big-unsigned>> <= ListBin];
+a2(N, Bin) ->
+   Len = 200,
+   <<ListBin:Len/big-binary-unit:32, Left/binary>> = Bin,
+   [X  || <<X:32/big-unsigned>> <= ListBin],
+   a2(N - 1, Bin).

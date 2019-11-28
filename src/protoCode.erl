@@ -100,65 +100,6 @@ decode(Bin) ->
    <<MsgId:16/big, MsgBin/binary>> = Bin,
    decodeBin(MsgId, MsgBin).
 
-deBoolList(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deBoolList(N, MsgBin, RetList) ->
-   <<Bool:8, LeftBin/binary>> = MsgBin,
-   case Bool =:= 1 of
-      true ->
-         deBoolList(N - 1, LeftBin, [true | RetList]);
-      _ ->
-         deBoolList(N - 1, LeftBin, [false | RetList])
-   end.
-
-deInt8List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deInt8List(N, MsgBin, RetList) ->
-   <<Int:8/big-signed, LeftBin/binary>> = MsgBin,
-   deInt8List(N - 1, LeftBin, [Int | RetList]).
-
-deUint8List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deUint8List(N, MsgBin, RetList) ->
-   <<Int:8/big-unsigned, LeftBin/binary>> = MsgBin,
-   deUint8List(N - 1, LeftBin, [Int | RetList]).
-
-deInt16List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deInt16List(N, MsgBin, RetList) ->
-   <<Int:16/big-signed, LeftBin/binary>> = MsgBin,
-   deInt16List(N - 1, LeftBin, [Int | RetList]).
-
-deUint16List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deUint16List(N, MsgBin, RetList) ->
-   <<Int:16/big-unsigned, LeftBin/binary>> = MsgBin,
-   deUint16List(N - 1, LeftBin, [Int | RetList]).
-
-deInt32List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deInt32List(N, MsgBin, RetList) ->
-   <<Int:32/big-signed, LeftBin/binary>> = MsgBin,
-   deInt32List(N - 1, LeftBin, [Int | RetList]).
-
-deUint32List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deUint32List(N, MsgBin, RetList) ->
-   <<Int:32/big-unsigned, LeftBin/binary>> = MsgBin,
-   deUint32List(N - 1, LeftBin, [Int | RetList]).
-
-deInt64List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deInt64List(N, MsgBin, RetList) ->
-   <<Int:64/big-signed, LeftBin/binary>> = MsgBin,
-   deInt64List(N - 1, LeftBin, [Int | RetList]).
-
-deUint64List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deUint64List(N, MsgBin, RetList) ->
-   <<Int:64/big-unsigned, LeftBin/binary>> = MsgBin,
-   deUint64List(N - 1, LeftBin, [Int | RetList]).
-
 deIntegerList(0, MsgBin, RetList) ->
    {lists:reverse(RetList), MsgBin};
 deIntegerList(N, MsgBin, RetList) ->
@@ -180,18 +121,6 @@ deNumberList(N, MsgBin, RetList) ->
          <<Int:NumBits/big-signed, LeftBin/binary>> = NumBin,
          deNumberList(N - 1, LeftBin, [Int | RetList])
    end.
-
-deFloatList(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deFloatList(N, MsgBin, RetList) ->
-   <<Float:32/big-float, LeftBin/binary>> = MsgBin,
-   deFloatList(N - 1, LeftBin, [Float | RetList]).
-
-deDoubleList(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deDoubleList(N, MsgBin, RetList) ->
-   <<Float:64/big-float, LeftBin/binary>> = MsgBin,
-   deDoubleList(N - 1, LeftBin, [Float | RetList]).
 
 deStringList(0, MsgBin, RetList) ->
    {lists:reverse(RetList), MsgBin};

@@ -1,7 +1,6 @@
 -module(protoMsg).
 
 
-
 -compile([nowarn_unused_vars]).
 
 -export([encode/1, decode/1, encodeRec/1, decodeBin/2]).
@@ -103,65 +102,6 @@ decode(Bin) ->
    <<MsgId:16/big, MsgBin/binary>> = Bin,
    decodeBin(MsgId, MsgBin).
 
-deBoolList(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deBoolList(N, MsgBin, RetList) ->
-   <<Bool:8, LeftBin/binary>> = MsgBin,
-   case Bool =:= 1 of
-      true ->
-         deBoolList(N - 1, LeftBin, [true | RetList]);
-      _ ->
-         deBoolList(N - 1, LeftBin, [false | RetList])
-   end.
-
-deInt8List(0, MsgBin, RetList) ->
-   {RetList, MsgBin};
-deInt8List(N, MsgBin, RetList) ->
-   <<Int:8/big-signed, LeftBin/binary>> = MsgBin,
-   deInt8List(N - 1, LeftBin, [Int | RetList]).
-
-deUint8List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deUint8List(N, MsgBin, RetList) ->
-   <<Int:8/big-unsigned, LeftBin/binary>> = MsgBin,
-   deUint8List(N - 1, LeftBin, [Int | RetList]).
-
-deInt16List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deInt16List(N, MsgBin, RetList) ->
-   <<Int:16/big-signed, LeftBin/binary>> = MsgBin,
-   deInt16List(N - 1, LeftBin, [Int | RetList]).
-
-deUint16List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deUint16List(N, MsgBin, RetList) ->
-   <<Int:16/big-unsigned, LeftBin/binary>> = MsgBin,
-   deUint16List(N - 1, LeftBin, [Int | RetList]).
-
-deInt32List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deInt32List(N, MsgBin, RetList) ->
-   <<Int:32/big-signed, LeftBin/binary>> = MsgBin,
-   deInt32List(N - 1, LeftBin, [Int | RetList]).
-
-deUint32List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deUint32List(N, MsgBin, RetList) ->
-   <<Int:32/big-unsigned, LeftBin/binary>> = MsgBin,
-   deUint32List(N - 1, LeftBin, [Int | RetList]).
-
-deInt64List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deInt64List(N, MsgBin, RetList) ->
-   <<Int:64/big-signed, LeftBin/binary>> = MsgBin,
-   deInt64List(N - 1, LeftBin, [Int | RetList]).
-
-deUint64List(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deUint64List(N, MsgBin, RetList) ->
-   <<Int:64/big-unsigned, LeftBin/binary>> = MsgBin,
-   deUint64List(N - 1, LeftBin, [Int | RetList]).
-
 deIntegerList(0, MsgBin, RetList) ->
    {lists:reverse(RetList), MsgBin};
 deIntegerList(N, MsgBin, RetList) ->
@@ -183,18 +123,6 @@ deNumberList(N, MsgBin, RetList) ->
          <<Int:NumBits/big-signed, LeftBin/binary>> = NumBin,
          deNumberList(N - 1, LeftBin, [Int | RetList])
    end.
-
-deFloatList(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deFloatList(N, MsgBin, RetList) ->
-   <<Float:32/big-float, LeftBin/binary>> = MsgBin,
-   deFloatList(N - 1, LeftBin, [Float | RetList]).
-
-deDoubleList(0, MsgBin, RetList) ->
-   {lists:reverse(RetList), MsgBin};
-deDoubleList(N, MsgBin, RetList) ->
-   <<Float:64/big-float, LeftBin/binary>> = MsgBin,
-   deDoubleList(N - 1, LeftBin, [Float | RetList]).
 
 deStringList(0, MsgBin, RetList) ->
    {lists:reverse(RetList), MsgBin};
@@ -497,39 +425,48 @@ decodeBin(19, LeftBin0) ->
 	{tstring, V1, V2};
 decodeBin(20, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deBoolList(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:8, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV =:= 1 || <<TemV:8/big-unsigned>> <= ListBin1],
 	{tlistbool, V1};
 decodeBin(21, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deInt8List(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:8, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV || <<TemV:8/big-signed>> <= ListBin1],
 	{tlistint8, V1};
 decodeBin(22, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deUint8List(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:8, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV || <<TemV:8/big-unsigned>> <= ListBin1],
 	{tlistuint8, V1};
 decodeBin(23, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deInt16List(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:16, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV || <<TemV:16/big-signed>> <= ListBin1],
 	{tlistint16, V1};
 decodeBin(24, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deUint16List(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:16, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV || <<TemV:16/big-unsigned>> <= ListBin1],
 	{tlistuint16, V1};
 decodeBin(25, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deInt32List(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:32, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV || <<TemV:32/big-signed>> <= ListBin1],
 	{tlistint32, V1};
 decodeBin(26, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deUint32List(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:32, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV || <<TemV:32/big-unsigned>> <= ListBin1],
 	{tlistuint32, V1};
 decodeBin(27, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deInt64List(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:64, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV || <<TemV:64/big-signed>> <= ListBin1],
 	{tlistint64, V1};
 decodeBin(28, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deUint64List(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:64, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV || <<TemV:64/big-unsigned>> <= ListBin1],
 	{tlistuint64, V1};
 decodeBin(29, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
@@ -541,11 +478,13 @@ decodeBin(30, LeftBin0) ->
 	{tlistnumber, V1};
 decodeBin(31, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deFloatList(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:32, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV || <<TemV:32/big-float>> <= ListBin1],
 	{tlistfloat, V1};
 decodeBin(32, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deDoubleList(Len1, LeftBin1, []),
+	<<ListBin1:Len1/big-binary-unit:64, LeftBin2/binary>> = LeftBin1,
+	V1 = [TemV || <<TemV:64/big-float>> <= ListBin1],
 	{tlistdouble, V1};
 decodeBin(33, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
@@ -666,23 +605,32 @@ decodeBin(35, LeftBin0) ->
 			{V32, LeftBin27} = decodeRec(5, LeftBin26)
 	end,
 	<<Len3:16/big-unsigned, LeftBin28/binary>> = LeftBin27,
-	{V33, LeftBin29} = deBoolList(Len3, LeftBin28, []),
+	<<ListBin1:Len3/big-binary-unit:8, LeftBin29/binary>> = LeftBin28,
+	V33 = [TemV =:= 1 || <<TemV:8/big-unsigned>> <= ListBin1],
 	<<Len4:16/big-unsigned, LeftBin30/binary>> = LeftBin29,
-	{V34, LeftBin31} = deInt8List(Len4, LeftBin30, []),
+	<<ListBin2:Len4/big-binary-unit:8, LeftBin31/binary>> = LeftBin30,
+	V34 = [TemV || <<TemV:8/big-signed>> <= ListBin2],
 	<<Len5:16/big-unsigned, LeftBin32/binary>> = LeftBin31,
-	{V35, LeftBin33} = deUint8List(Len5, LeftBin32, []),
+	<<ListBin3:Len5/big-binary-unit:8, LeftBin33/binary>> = LeftBin32,
+	V35 = [TemV || <<TemV:8/big-unsigned>> <= ListBin3],
 	<<Len6:16/big-unsigned, LeftBin34/binary>> = LeftBin33,
-	{V36, LeftBin35} = deInt16List(Len6, LeftBin34, []),
+	<<ListBin4:Len6/big-binary-unit:16, LeftBin35/binary>> = LeftBin34,
+	V36 = [TemV || <<TemV:16/big-signed>> <= ListBin4],
 	<<Len7:16/big-unsigned, LeftBin36/binary>> = LeftBin35,
-	{V37, LeftBin37} = deUint16List(Len7, LeftBin36, []),
+	<<ListBin5:Len7/big-binary-unit:16, LeftBin37/binary>> = LeftBin36,
+	V37 = [TemV || <<TemV:16/big-unsigned>> <= ListBin5],
 	<<Len8:16/big-unsigned, LeftBin38/binary>> = LeftBin37,
-	{V38, LeftBin39} = deInt32List(Len8, LeftBin38, []),
+	<<ListBin6:Len8/big-binary-unit:32, LeftBin39/binary>> = LeftBin38,
+	V38 = [TemV || <<TemV:32/big-signed>> <= ListBin6],
 	<<Len9:16/big-unsigned, LeftBin40/binary>> = LeftBin39,
-	{V39, LeftBin41} = deUint32List(Len9, LeftBin40, []),
+	<<ListBin7:Len9/big-binary-unit:32, LeftBin41/binary>> = LeftBin40,
+	V39 = [TemV || <<TemV:32/big-unsigned>> <= ListBin7],
 	<<Len10:16/big-unsigned, LeftBin42/binary>> = LeftBin41,
-	{V40, LeftBin43} = deInt64List(Len10, LeftBin42, []),
+	<<ListBin8:Len10/big-binary-unit:64, LeftBin43/binary>> = LeftBin42,
+	V40 = [TemV || <<TemV:64/big-signed>> <= ListBin8],
 	<<Len11:16/big-unsigned, LeftBin44/binary>> = LeftBin43,
-	{V41, LeftBin45} = deUint64List(Len11, LeftBin44, []),
+	<<ListBin9:Len11/big-binary-unit:64, LeftBin45/binary>> = LeftBin44,
+	V41 = [TemV || <<TemV:64/big-unsigned>> <= ListBin9],
 	<<Len12:16/big-unsigned, LeftBin46/binary>> = LeftBin45,
 	{V42, LeftBin47} = deIntegerList(Len12, LeftBin46, []),
 	<<Len13:16/big-unsigned, LeftBin48/binary>> = LeftBin47,
@@ -704,9 +652,11 @@ decodeBin(35, LeftBin0) ->
 	<<Len21:16/big-unsigned, LeftBin64/binary>> = LeftBin63,
 	{V51, LeftBin65} = deNumberList(Len21, LeftBin64, []),
 	<<Len22:16/big-unsigned, LeftBin66/binary>> = LeftBin65,
-	{V52, LeftBin67} = deFloatList(Len22, LeftBin66, []),
+	<<ListBin20:Len22/big-binary-unit:32, LeftBin67/binary>> = LeftBin66,
+	V52 = [TemV || <<TemV:32/big-float>> <= ListBin20],
 	<<Len23:16/big-unsigned, LeftBin68/binary>> = LeftBin67,
-	{V53, LeftBin69} = deDoubleList(Len23, LeftBin68, []),
+	<<ListBin21:Len23/big-binary-unit:64, LeftBin69/binary>> = LeftBin68,
+	V53 = [TemV || <<TemV:64/big-float>> <= ListBin21],
 	<<Len24:16/big-unsigned, LeftBin70/binary>> = LeftBin69,
 	{V54, LeftBin71} = deStringList(Len24, LeftBin70, []),
 	<<Len25:16/big-unsigned, LeftBin72/binary>> = LeftBin71,
