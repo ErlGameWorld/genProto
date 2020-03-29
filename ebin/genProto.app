@@ -4,7 +4,6 @@
               {registered,[]},
               {applications,[kernel,stdlib]},
               {env,[]},
-              {modules,[protoCode,protoCode_bak,protoField,protoGen,
-                        protoParse]},
+              {modules,[protoCode,protoField,protoGen,protoParse]},
               {licenses,["Apache 2.0"]},
               {links,[]}]}.

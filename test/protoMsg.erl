@@ -50,6 +50,9 @@
 -define(list_string(List), [<<(length(List)):16/big>>, [string(V) || V <- List]]).
 -define(list_record(List), [<<(length(List)):16/big>>, [encodeRec(V) || V <- List]]).
 
+-define(BinaryShareSize, 65).
+-define(BinaryCopyRatio, 1.2).
+
 integer(V) ->
    if
       V >= ?min8 andalso V =< ?max8 ->
@@ -124,11 +127,22 @@ deNumberList(N, MsgBin, RetList) ->
          deNumberList(N - 1, LeftBin, [Int | RetList])
    end.
 
-deStringList(0, MsgBin, RetList) ->
+deStringList(0, MsgBin, _RefSize, RetList) ->
    {lists:reverse(RetList), MsgBin};
-deStringList(N, MsgBin, RetList) ->
+deStringList(N, MsgBin, RefSize, RetList) ->
    <<Len:16/big, StrBin:Len/binary-unit:8, LeftBin/binary>> = MsgBin,
-   deStringList(N - 1, LeftBin, [StrBin | RetList]).
+   case Len < ?BinaryShareSize of
+      true ->
+         deStringList(N - 1, LeftBin, RefSize, [StrBin | RetList]);
+      _ ->
+         case RefSize / Len > ?BinaryCopyRatio of
+            true ->
+               StrBinCopy = binary:copy(StrBin),
+               deStringList(N - 1, LeftBin, RefSize, [StrBinCopy | RetList]);
+            _ ->
+               deStringList(N - 1, LeftBin, RefSize, [StrBin | RetList])
+         end
+   end.
 
 deRecordList(0, _MsgId, MsgBin, RetList) ->
    {lists:reverse(RetList), MsgBin};
@@ -223,7 +237,19 @@ encode(_) ->
 	[].
 
 decodeRec(1, LeftBin0) ->
-	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	RefSize = binary:referenced_byte_size(LeftBin0),
+	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	case Len1 < ?BinaryShareSize of
+		true ->
+			V1 = TemStrV1;
+		_ ->
+			case RefSize / Len1 > ?BinaryCopyRatio of
+				true ->
+					V1 = binary:copy(TemStrV1);
+				_ ->
+					V1 = TemStrV1
+			end
+	end,
 	MsgRec = {test, V1},
 	{MsgRec, LeftBin1};
 decodeRec(2, LeftBin0) ->
@@ -239,15 +265,50 @@ decodeRec(2, LeftBin0) ->
 	MsgRec = {phoneNumber, V1, V2},
 	{MsgRec, LeftBin3};
 decodeRec(3, LeftBin0) ->
-	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	RefSize = binary:referenced_byte_size(LeftBin0),
+	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	case Len1 < ?BinaryShareSize of
+		true ->
+			V1 = TemStrV1;
+		_ ->
+			case RefSize / Len1 > ?BinaryCopyRatio of
+				true ->
+					V1 = binary:copy(TemStrV1);
+				_ ->
+					V1 = TemStrV1
+			end
+	end,
 	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
-	<<Len2:16/big-unsigned, V3:Len2/binary, LeftBin3/binary>> = LeftBin2,
+	<<Len2:16/big-unsigned, TemStrV3:Len2/binary, LeftBin3/binary>> = LeftBin2,
+	case Len2 < ?BinaryShareSize of
+		true ->
+			V3 = TemStrV3;
+		_ ->
+			case RefSize / Len2 > ?BinaryCopyRatio of
+				true ->
+					V3 = binary:copy(TemStrV3);
+				_ ->
+					V3 = TemStrV3
+			end
+	end,
 	<<Len3:16/big-unsigned, LeftBin4/binary>> = LeftBin3,
 	{V4, LeftBin5} = deRecordList(Len3, 2, LeftBin4, []),
 	MsgRec = {person, V1, V2, V3, V4},
 	{MsgRec, LeftBin5};
 decodeRec(5, LeftBin0) ->
-	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	RefSize = binary:referenced_byte_size(LeftBin0),
+	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	case Len1 < ?BinaryShareSize of
+		true ->
+			V1 = TemStrV1;
+		_ ->
+			case RefSize / Len1 > ?BinaryCopyRatio of
+				true ->
+					V1 = binary:copy(TemStrV1);
+				_ ->
+					V1 = TemStrV1
+			end
+	end,
 	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
 	MsgRec = {union, V1, V2},
 	{MsgRec, LeftBin2};
@@ -255,7 +316,19 @@ decodeRec(_, _) ->
 	{{}, <<>>}.
 
 decodeBin(1, LeftBin0) ->
-	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	RefSize = binary:referenced_byte_size(LeftBin0),
+	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	case Len1 < ?BinaryShareSize of
+		true ->
+			V1 = TemStrV1;
+		_ ->
+			case RefSize / Len1 > ?BinaryCopyRatio of
+				true ->
+					V1 = binary:copy(TemStrV1);
+				_ ->
+					V1 = TemStrV1
+			end
+	end,
 	{test, V1};
 decodeBin(2, LeftBin0) ->
 	<<IsUndef1:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
@@ -269,9 +342,32 @@ decodeBin(2, LeftBin0) ->
 	<<V2:32/big-signed, LeftBin3/binary>> = LeftBin2,
 	{phoneNumber, V1, V2};
 decodeBin(3, LeftBin0) ->
-	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	RefSize = binary:referenced_byte_size(LeftBin0),
+	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	case Len1 < ?BinaryShareSize of
+		true ->
+			V1 = TemStrV1;
+		_ ->
+			case RefSize / Len1 > ?BinaryCopyRatio of
+				true ->
+					V1 = binary:copy(TemStrV1);
+				_ ->
+					V1 = TemStrV1
+			end
+	end,
 	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
-	<<Len2:16/big-unsigned, V3:Len2/binary, LeftBin3/binary>> = LeftBin2,
+	<<Len2:16/big-unsigned, TemStrV3:Len2/binary, LeftBin3/binary>> = LeftBin2,
+	case Len2 < ?BinaryShareSize of
+		true ->
+			V3 = TemStrV3;
+		_ ->
+			case RefSize / Len2 > ?BinaryCopyRatio of
+				true ->
+					V3 = binary:copy(TemStrV3);
+				_ ->
+					V3 = TemStrV3
+			end
+	end,
 	<<Len3:16/big-unsigned, LeftBin4/binary>> = LeftBin3,
 	{V4, LeftBin5} = deRecordList(Len3, 2, LeftBin4, []),
 	{person, V1, V2, V3, V4};
@@ -282,7 +378,19 @@ decodeBin(4, LeftBin0) ->
 	{V2, LeftBin4} = deRecordList(Len2, 3, LeftBin3, []),
 	{addressBook, V1, V2};
 decodeBin(5, LeftBin0) ->
-	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	RefSize = binary:referenced_byte_size(LeftBin0),
+	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	case Len1 < ?BinaryShareSize of
+		true ->
+			V1 = TemStrV1;
+		_ ->
+			case RefSize / Len1 > ?BinaryCopyRatio of
+				true ->
+					V1 = binary:copy(TemStrV1);
+				_ ->
+					V1 = TemStrV1
+			end
+	end,
 	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
 	{union, V1, V2};
 decodeBin(6, LeftBin0) ->
@@ -415,8 +523,31 @@ decodeBin(18, LeftBin0) ->
 	<<V1:64/big-float, V2:64/big-float, LeftBin1/binary>> = LeftBin0,
 	{tdouble, V1, V2};
 decodeBin(19, LeftBin0) ->
-	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
-	<<Len2:16/big-unsigned, V2:Len2/binary, LeftBin2/binary>> = LeftBin1,
+	RefSize = binary:referenced_byte_size(LeftBin0),
+	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	case Len1 < ?BinaryShareSize of
+		true ->
+			V1 = TemStrV1;
+		_ ->
+			case RefSize / Len1 > ?BinaryCopyRatio of
+				true ->
+					V1 = binary:copy(TemStrV1);
+				_ ->
+					V1 = TemStrV1
+			end
+	end,
+	<<Len2:16/big-unsigned, TemStrV2:Len2/binary, LeftBin2/binary>> = LeftBin1,
+	case Len2 < ?BinaryShareSize of
+		true ->
+			V2 = TemStrV2;
+		_ ->
+			case RefSize / Len2 > ?BinaryCopyRatio of
+				true ->
+					V2 = binary:copy(TemStrV2);
+				_ ->
+					V2 = TemStrV2
+			end
+	end,
 	{tstring, V1, V2};
 decodeBin(20, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
@@ -483,7 +614,8 @@ decodeBin(32, LeftBin0) ->
 	{tlistdouble, V1};
 decodeBin(33, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{V1, LeftBin2} = deStringList(Len1, LeftBin1, []),
+	RefSize = binary:referenced_byte_size(LeftBin0),
+	{V1, LeftBin2} = deStringList(Len1, LeftBin1, RefSize, []),
 	{tliststring, V1};
 decodeBin(34, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
@@ -584,8 +716,31 @@ decodeBin(35, LeftBin0) ->
 			<<V27:NumBits10/big-signed, LeftBin22/binary>> = LeftBin21
 	end,
 	<<V28:32/big-float, V29:64/big-float, LeftBin23/binary>> = LeftBin22,
-	<<Len1:16/big-unsigned, V30:Len1/binary, LeftBin24/binary>> = LeftBin23,
-	<<Len2:16/big-unsigned, V31:Len2/binary, LeftBin25/binary>> = LeftBin24,
+	RefSize = binary:referenced_byte_size(LeftBin0),
+	<<Len1:16/big-unsigned, TemStrV30:Len1/binary, LeftBin24/binary>> = LeftBin23,
+	case Len1 < ?BinaryShareSize of
+		true ->
+			V30 = TemStrV30;
+		_ ->
+			case RefSize / Len1 > ?BinaryCopyRatio of
+				true ->
+					V30 = binary:copy(TemStrV30);
+				_ ->
+					V30 = TemStrV30
+			end
+	end,
+	<<Len2:16/big-unsigned, TemStrV31:Len2/binary, LeftBin25/binary>> = LeftBin24,
+	case Len2 < ?BinaryShareSize of
+		true ->
+			V31 = TemStrV31;
+		_ ->
+			case RefSize / Len2 > ?BinaryCopyRatio of
+				true ->
+					V31 = binary:copy(TemStrV31);
+				_ ->
+					V31 = TemStrV31
+			end
+	end,
 	<<IsUndef1:8/big-unsigned, LeftBin26/binary>> = LeftBin25,
 	case IsUndef1 of
 		0 ->
@@ -648,14 +803,37 @@ decodeBin(35, LeftBin0) ->
 	<<ListBin21:Len23/big-binary-unit:64, LeftBin69/binary>> = LeftBin68,
 	V53 = [TemV || <<TemV:64/big-float>> <= ListBin21],
 	<<Len24:16/big-unsigned, LeftBin70/binary>> = LeftBin69,
-	{V54, LeftBin71} = deStringList(Len24, LeftBin70, []),
+	{V54, LeftBin71} = deStringList(Len24, LeftBin70, RefSize, []),
 	<<Len25:16/big-unsigned, LeftBin72/binary>> = LeftBin71,
 	{V55, LeftBin73} = deRecordList(Len25, 5, LeftBin72, []),
 	{allType, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40, V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53, V54, V55};
 decodeBin(1001, LeftBin0) ->
-	<<Len1:16/big-unsigned, V1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	RefSize = binary:referenced_byte_size(LeftBin0),
+	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
+	case Len1 < ?BinaryShareSize of
+		true ->
+			V1 = TemStrV1;
+		_ ->
+			case RefSize / Len1 > ?BinaryCopyRatio of
+				true ->
+					V1 = binary:copy(TemStrV1);
+				_ ->
+					V1 = TemStrV1
+			end
+	end,
 	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
-	<<Len2:16/big-unsigned, V3:Len2/binary, LeftBin3/binary>> = LeftBin2,
+	<<Len2:16/big-unsigned, TemStrV3:Len2/binary, LeftBin3/binary>> = LeftBin2,
+	case Len2 < ?BinaryShareSize of
+		true ->
+			V3 = TemStrV3;
+		_ ->
+			case RefSize / Len2 > ?BinaryCopyRatio of
+				true ->
+					V3 = binary:copy(TemStrV3);
+				_ ->
+					V3 = TemStrV3
+			end
+	end,
 	<<Len3:16/big-unsigned, LeftBin4/binary>> = LeftBin3,
 	{V4, LeftBin5} = deRecordList(Len3, 2, LeftBin4, []),
 	{person1, V1, V2, V3, V4};

@@ -48,6 +48,9 @@
 -define(list_string(List), [<<(length(List)):16/big>>, [string(V) || V <- List]]).
 -define(list_record(List), [<<(length(List)):16/big>>, [encodeRec(V) || V <- List]]).
 
+-define(BinaryShareSize, 65).        %% binary 大于64时 binary和sub就会share
+-define(BinaryCopyRatio, 1.2).       %% 当总binary的Sise / Sub binary size > 1.2 就重新复制一个
+
 integer(V) ->
    if
       V >= ?min8 andalso V =< ?max8 ->
@@ -122,11 +125,22 @@ deNumberList(N, MsgBin, RetList) ->
          deNumberList(N - 1, LeftBin, [Int | RetList])
    end.
 
-deStringList(0, MsgBin, RetList) ->
+deStringList(0, MsgBin, _RefSize, RetList) ->
    {lists:reverse(RetList), MsgBin};
-deStringList(N, MsgBin, RetList) ->
+deStringList(N, MsgBin, RefSize, RetList) ->
    <<Len:16/big, StrBin:Len/binary-unit:8, LeftBin/binary>> = MsgBin,
-   deStringList(N - 1, LeftBin, [StrBin | RetList]).
+   case Len < ?BinaryShareSize of
+      true ->
+         deStringList(N - 1, LeftBin, RefSize, [StrBin | RetList]);
+      _ ->
+         case RefSize / Len > ?BinaryCopyRatio of
+            true ->
+               StrBinCopy = binary:copy(StrBin),
+               deStringList(N - 1, LeftBin, RefSize, [StrBinCopy | RetList]);
+            _ ->
+               deStringList(N - 1, LeftBin, RefSize, [StrBin | RetList])
+         end
+   end.
 
 deRecordList(0, _MsgId, MsgBin, RetList) ->
    {lists:reverse(RetList), MsgBin};

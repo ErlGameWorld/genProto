@@ -70,6 +70,9 @@ protoErlHeader() ->
 -define(list_string(List), [<<(length(List)):16/big>>, [string(V) || V <- List]]).
 -define(list_record(List), [<<(length(List)):16/big>>, [encodeRec(V) || V <- List]]).
 
+-define(BinaryShareSize, 65).
+-define(BinaryCopyRatio, 1.2).
+
 integer(V) ->
    if
       V >= ?min8 andalso V =< ?max8 ->
@@ -144,11 +147,22 @@ deNumberList(N, MsgBin, RetList) ->
          deNumberList(N - 1, LeftBin, [Int | RetList])
    end.
 
-deStringList(0, MsgBin, RetList) ->
+deStringList(0, MsgBin, _RefSize, RetList) ->
    {lists:reverse(RetList), MsgBin};
-deStringList(N, MsgBin, RetList) ->
+deStringList(N, MsgBin, RefSize, RetList) ->
    <<Len:16/big, StrBin:Len/binary-unit:8, LeftBin/binary>> = MsgBin,
-   deStringList(N - 1, LeftBin, [StrBin | RetList]).
+   case Len < ?BinaryShareSize of
+      true ->
+         deStringList(N - 1, LeftBin, RefSize, [StrBin | RetList]);
+      _ ->
+         case RefSize / Len > ?BinaryCopyRatio of
+            true ->
+               StrBinCopy = binary:copy(StrBin),
+               deStringList(N - 1, LeftBin, RefSize, [StrBinCopy | RetList]);
+            _ ->
+               deStringList(N - 1, LeftBin, RefSize, [StrBin | RetList])
+         end
+   end.
 
 deRecordList(0, _MsgId, MsgBin, RetList) ->
    {lists:reverse(RetList), MsgBin};
@@ -216,7 +230,6 @@ genEncodeRec({MsgName, MsgId, FieldList}, IsForBin) ->
          end
    end.
 
-
 resetPd() ->
    erlang:put(pd_v, 0),
    erlang:put(pd_len, 0),
@@ -225,7 +238,8 @@ resetPd() ->
    erlang:put(pd_intBits, 0),
    erlang:put(pd_numBits, 0),
    erlang:put(pd_listBin, 0),
-   erlang:put(pd_isUndef, 0).
+   erlang:put(pd_isUndef, 0),
+   erlang:put(pd_isCalcRefSize, 0).
 
 getIndexStr(Type) ->
    Index = erlang:get(Type),
@@ -235,6 +249,9 @@ useIndexStr(Type) ->
    Index = erlang:get(Type) + 1,
    erlang:put(Type, Index),
    erlang:integer_to_list(Index).
+
+isCalcRefSize() ->
+   erlang:get(pd_isCalcRefSize) > 0.
 
 initSubRec() ->
    erlang:put(pd_subRec, []).
@@ -406,8 +423,21 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
                GetLeftBinStr2 = getIndexStr(pd_leftBin),
                UseLeftBinStr2 = useIndexStr(pd_leftBin),
                UseVStr = useIndexStr(pd_v),
-               StrStr = "\t<<Len" ++ UseLenStr ++ ":16/big-unsigned, V" ++ UseVStr ++ ":Len" ++ UseLenStr ++ "/binary, LeftBin" ++ UseLeftBinStr2 ++ "/binary>> = LeftBin" ++ GetLeftBinStr2 ++ ",\n",
-               {false, StrAcc ++ TemStr ++ StrStr};
+               RefSizeStr =
+                  case isCalcRefSize() of
+                     false ->
+                        useIndexStr(pd_isCalcRefSize),
+                        "\tRefSize = binary:referenced_byte_size(LeftBin0),\n";
+                     _ ->
+                        ""
+                  end,
+               StrStr = "\t<<Len" ++ UseLenStr ++ ":16/big-unsigned, TemStrV" ++ UseVStr ++ ":Len" ++ UseLenStr ++ "/binary, LeftBin" ++ UseLeftBinStr2 ++ "/binary>> = LeftBin" ++ GetLeftBinStr2 ++ ",\n",
+               VStr = "\tcase Len" ++ UseLenStr ++ " < ?BinaryShareSize of\n\t\t" ++
+                  "true ->\n\t\t\tV" ++ UseVStr ++ " = TemStrV" ++ UseVStr ++ ";\n\t\t" ++
+                  "_ ->\n\t\t\tcase RefSize / Len" ++ UseLenStr ++ " > ?BinaryCopyRatio of\n\t\t\t\t" ++
+                  "true ->\n\t\t\t\t\tV" ++ UseVStr ++ " = binary:copy(TemStrV" ++ UseVStr ++ ");\n\t\t\t\t" ++
+                  "_ ->\n\t\t\t\t\tV" ++ UseVStr ++ " = TemStrV" ++ UseVStr ++ "\n\t\t\tend\n\tend,\n",
+               {false, StrAcc ++ TemStr ++ RefSizeStr ++ StrStr ++ VStr};
             "integer" ->
                TemStr =
                   case IsSimple of
@@ -513,7 +543,15 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
                         VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:64/big-float>> <= ListBin" ++ UseListBinStr ++ "],\n",
                         ListBinStr ++ VStr;
                      "string" ->
-                        "\t{V" ++ UseVStr ++ ", LeftBin" ++ UseLeftBinStr3 ++ "} = deStringList(Len" ++ UseLenStr ++ ", LeftBin" ++ GetLeftBinStr3 ++ ", []),\n";
+                        case isCalcRefSize() of
+                           true ->
+                              "\t{V" ++ UseVStr ++ ", LeftBin" ++ UseLeftBinStr3 ++ "} = deStringList(Len" ++ UseLenStr ++ ", LeftBin" ++ GetLeftBinStr3 ++ ", RefSize, []),\n";
+                           _ ->
+                              useIndexStr(pd_isCalcRefSize),
+                              RefSizeStr = "\tRefSize = binary:referenced_byte_size(LeftBin0),\n",
+                              VStr = "\t{V" ++ UseVStr ++ ", LeftBin" ++ UseLeftBinStr3 ++ "} = deStringList(Len" ++ UseLenStr ++ ", LeftBin" ++ GetLeftBinStr3 ++ ", RefSize, []),\n",
+                              RefSizeStr ++ VStr
+                        end;
                      ListRecord ->
                         case lists:keyfind(ListRecord, 1, SortedSProtoList) of
                            {ListRecord, ListMsgId, _} = RecordInfo ->
