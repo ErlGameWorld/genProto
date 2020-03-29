@@ -213,13 +213,13 @@ allType() ->
       , lnfloat64 = [-666666666666.88888, 4434.434, 434.43, 11111111111.34343, 5566]
       , lfloat = [1.1, 2.2, 3.3, 666666.666]
       , ldouble = [111111111.1, 22222222.2, 3.3, 66666622333333.666]
-      , lstring = ["fdsafsdfsfs", "电风扇打法胜多负少的", <<"fdsfasdfsfs">>, <<"大丰收大丰收的方式">>]
+      , lstring = ["fdsafsdfsfs", "电风扇打法胜多负少的", <<"fdsfasdfsfs">>, <<"大丰收大丰收的方式"/utf8>>]
       , lunion = [#union{}, #union{type = 1, test = "aaaaa"}, #union{type = 2, test = "嘿嘿嘿嘿"}]
    },
    List = protoMsg:encode(AllType),
-   iolist_to_binary(List).
+   iolist_to_binary(List),
    %%io:format("~p~n", [List]),
-   %%AllType1 = protoMsg:decode(iolist_to_binary(List)),
+   AllType1 = protoMsg:decode(iolist_to_binary(List)).
    %%AllType1.
 
 tall1(0) ->
@@ -278,7 +278,7 @@ tall1(N) ->
       , lnfloat64 = [-666666666666.88888, 4434.434, 434.43, 11111111111.34343, 5566]
       , lfloat = [1.1, 2.2, 3.3, 666666.666]
       , ldouble = [111111111.1, 22222222.2, 3.3, 66666622333333.666]
-      , lstring = ["fdsafsdfsfs", "电风扇打法胜多负少的", <<"fdsfasdfsfs">>, <<"大丰收大丰收的方式">>]
+      , lstring = ["fdsafsdfsfs", "电风扇打法胜多负少的", <<"fdsfasdfsfs">>, <<"大丰收大丰收的方式"/utf8>>]
       , lunion = [#union{}, #union{type = 1, test = "aaaaa"}, #union{type = 2, test = "嘿嘿嘿嘿"}]
    },
    %protoMsg:encode(AllType),
@@ -340,7 +340,7 @@ tall(N) ->
       , lnfloat64 = [-666666666666.88888, 4434.434, 434.43, 11111111111.34343, 5566]
       , lfloat = [1.1, 2.2, 3.3, 666666.666]
       , ldouble = [111111111.1, 22222222.2, 3.3, 66666622333333.666]
-      , lstring = ["fdsafsdfsfs", "电风扇打法胜多负少的", <<"fdsfasdfsfs">>, <<"大丰收大丰收的方式">>]
+      , lstring = ["fdsafsdfsfs", "电风扇打法胜多负少的", <<"fdsfasdfsfs">>, <<"大丰收大丰收的方式"/utf8>>]
       , lunion = [#union{}, #union{type = 1, test = "aaaaa"}, #union{type = 2, test = "嘿嘿嘿嘿"}]
    },
    %List = protoMsg:encode(AllType),
