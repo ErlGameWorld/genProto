@@ -55,7 +55,7 @@ tt3(N, Add) ->
    tt3(N - 1, Add).
 
 getFun(N) ->
-   getFun(N, #addressBook{}, 0).
+   getFun1(N, #addressBook{}, 0).
 
 getFun1(0, Tuple, _A) ->
    element(1, Tuple);
