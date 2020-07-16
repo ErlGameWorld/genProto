@@ -21,7 +21,7 @@ decode_int32(N) ->
    tt2(N, iolist_to_binary(Bin)).
 
 tt2(0, Bin) ->
-   Bin;
+   {protoMsg:decode(Bin), Bin};
 tt2(N, Bin) ->
    protoMsg:decode(Bin),
    tt2(N - 1, Bin).

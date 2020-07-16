@@ -667,7 +667,7 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
          end
       end,
    %% 下面文件帅选并不能准确的帅选出文件名为.mpdf结尾的文件 在FunRead函数中纠正处理一下
-   SProtoListOfList = filelib:fold_files(ProtoDir, "\\.mpdf", true, FunRead, []),
+   SProtoListOfList = filelib:fold_files(ProtoDir, "\\.mpdf$", true, FunRead, []),
    SProtoList = lists:append(SProtoListOfList),
    ErrCodeList = erlang:get(pd_errlist),
    initSubRec(),
