@@ -338,7 +338,7 @@ decodeBin(1, LeftBin0) ->
 					V1 = TemStrV1
 			end
 	end,
-	{test, V1};
+	{testHer, test, {test, V1}};
 decodeBin(2, LeftBin0) ->
 	<<IsUndef1:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	case IsUndef1 of
@@ -349,7 +349,7 @@ decodeBin(2, LeftBin0) ->
 			{V1, LeftBin2} = decodeRec(1, LeftBin1)
 	end,
 	<<V2:32/big-signed, LeftBin3/binary>> = LeftBin2,
-	{phoneNumber, V1, V2};
+	{testHer, phoneNumber, {phoneNumber, V1, V2}};
 decodeBin(3, LeftBin0) ->
 	RefSize = binary:referenced_byte_size(LeftBin0),
 	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
@@ -379,13 +379,13 @@ decodeBin(3, LeftBin0) ->
 	end,
 	<<Len3:16/big-unsigned, LeftBin4/binary>> = LeftBin3,
 	{V4, LeftBin5} = deRecordList(Len3, 2, LeftBin4, []),
-	{person, V1, V2, V3, V4};
+	{testHer, person, {person, V1, V2, V3, V4}};
 decodeBin(4, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	{V1, LeftBin2} = deRecordList(Len1, 3, LeftBin1, []),
 	<<Len2:16/big-unsigned, LeftBin3/binary>> = LeftBin2,
 	{V2, LeftBin4} = deRecordList(Len2, 3, LeftBin3, []),
-	{addressBook, V1, V2};
+	{testHer, addressBook, {addressBook, V1, V2}};
 decodeBin(5, LeftBin0) ->
 	RefSize = binary:referenced_byte_size(LeftBin0),
 	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
@@ -401,38 +401,38 @@ decodeBin(5, LeftBin0) ->
 			end
 	end,
 	<<V2:32/big-signed, LeftBin2/binary>> = LeftBin1,
-	{union, V1, V2};
+	{testHer, union, {union, V1, V2}};
 decodeBin(6, LeftBin0) ->
 	<<Bool1:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	V1 = Bool1 =:= 1,
-	{tbool, V1};
+	{testHer, tbool, {tbool, V1}};
 decodeBin(7, LeftBin0) ->
 	<<V1:8/big-signed, V2:8/big-signed, LeftBin1/binary>> = LeftBin0,
-	{tint8, V1, V2};
+	{testHer, tint8, {tint8, V1, V2}};
 decodeBin(8, LeftBin0) ->
 	<<V1:8/big-unsigned, V2:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{tuint8, V1, V2};
+	{testHer, tuint8, {tuint8, V1, V2}};
 decodeBin(9, LeftBin0) ->
 	<<V1:16/big-signed, V2:16/big-signed, LeftBin1/binary>> = LeftBin0,
-	{tint16, V1, V2};
+	{testHer, tint16, {tint16, V1, V2}};
 decodeBin(10, LeftBin0) ->
 	<<V1:16/big-unsigned, V2:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{tuint16, V1, V2};
+	{testHer, tuint16, {tuint16, V1, V2}};
 decodeBin(11, LeftBin0) ->
 	<<V1:32/big-signed, V2:32/big-signed, V3:32/big-signed, V4:32/big-signed, V5:32/big-signed, V6:32/big-signed, V7:32/big-signed, V8:32/big-signed, V9:32/big-signed, V10:32/big-signed, LeftBin1/binary>> = LeftBin0,
-	{tint32, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10};
+	{testHer, tint32, {tint32, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10}};
 decodeBin(12, LeftBin0) ->
 	<<V1:32/big-unsigned, V2:32/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{tuint32, V1, V2};
+	{testHer, tuint32, {tuint32, V1, V2}};
 decodeBin(13, LeftBin0) ->
 	<<V1:64/big-signed, V2:64/big-signed, LeftBin1/binary>> = LeftBin0,
-	{tint64, V1, V2};
+	{testHer, tint64, {tint64, V1, V2}};
 decodeBin(14, LeftBin0) ->
 	<<V1:64/big-unsigned, V2:64/big-unsigned, LeftBin1/binary>> = LeftBin0,
-	{tuint64, V1, V2};
+	{testHer, tuint64, {tuint64, V1, V2}};
 decodeBin(15, LeftBin0) ->
 	<<IntBits1:8, V1:IntBits1/big-signed, IntBits2:8, V2:IntBits2/big-signed, IntBits3:8, V3:IntBits3/big-signed, IntBits4:8, V4:IntBits4/big-signed, IntBits5:8, V5:IntBits5/big-signed, IntBits6:8, V6:IntBits6/big-signed, IntBits7:8, V7:IntBits7/big-signed, IntBits8:8, V8:IntBits8/big-signed, LeftBin1/binary>> = LeftBin0,
-	{tinteger, V1, V2, V3, V4, V5, V6, V7, V8};
+	{testHer, tinteger, {tinteger, V1, V2, V3, V4, V5, V6, V7, V8}};
 decodeBin(16, LeftBin0) ->
 	<<NumBits1:8, LeftBin1/binary>> = LeftBin0,
 	case NumBits1 of
@@ -524,13 +524,13 @@ decodeBin(16, LeftBin0) ->
 		_ ->
 			<<V10:NumBits10/big-signed, LeftBin20/binary>> = LeftBin19
 	end,
-	{tnumber, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10};
+	{testHer, tnumber, {tnumber, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10}};
 decodeBin(17, LeftBin0) ->
 	<<V1:32/big-float, V2:32/big-float, LeftBin1/binary>> = LeftBin0,
-	{tfloat, V1, V2};
+	{testHer, tfloat, {tfloat, V1, V2}};
 decodeBin(18, LeftBin0) ->
 	<<V1:64/big-float, V2:64/big-float, LeftBin1/binary>> = LeftBin0,
-	{tdouble, V1, V2};
+	{testHer, tdouble, {tdouble, V1, V2}};
 decodeBin(19, LeftBin0) ->
 	RefSize = binary:referenced_byte_size(LeftBin0),
 	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
@@ -557,79 +557,79 @@ decodeBin(19, LeftBin0) ->
 					V2 = TemStrV2
 			end
 	end,
-	{tstring, V1, V2};
+	{testHer, tstring, {tstring, V1, V2}};
 decodeBin(20, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:8, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV =:= 1 || <<TemV:8/big-unsigned>> <= ListBin1],
-	{tlistbool, V1};
+	{testHer, tlistbool, {tlistbool, V1}};
 decodeBin(21, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:8, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV || <<TemV:8/big-signed>> <= ListBin1],
-	{tlistint8, V1};
+	{testHer, tlistint8, {tlistint8, V1}};
 decodeBin(22, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:8, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV || <<TemV:8/big-unsigned>> <= ListBin1],
-	{tlistuint8, V1};
+	{testHer, tlistuint8, {tlistuint8, V1}};
 decodeBin(23, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:16, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV || <<TemV:16/big-signed>> <= ListBin1],
-	{tlistint16, V1};
+	{testHer, tlistint16, {tlistint16, V1}};
 decodeBin(24, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:16, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV || <<TemV:16/big-unsigned>> <= ListBin1],
-	{tlistuint16, V1};
+	{testHer, tlistuint16, {tlistuint16, V1}};
 decodeBin(25, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:32, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV || <<TemV:32/big-signed>> <= ListBin1],
-	{tlistint32, V1};
+	{testHer, tlistint32, {tlistint32, V1}};
 decodeBin(26, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:32, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV || <<TemV:32/big-unsigned>> <= ListBin1],
-	{tlistuint32, V1};
+	{testHer, tlistuint32, {tlistuint32, V1}};
 decodeBin(27, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:64, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV || <<TemV:64/big-signed>> <= ListBin1],
-	{tlistint64, V1};
+	{testHer, tlistint64, {tlistint64, V1}};
 decodeBin(28, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:64, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV || <<TemV:64/big-unsigned>> <= ListBin1],
-	{tlistuint64, V1};
+	{testHer, tlistuint64, {tlistuint64, V1}};
 decodeBin(29, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	{V1, LeftBin2} = deIntegerList(Len1, LeftBin1, []),
-	{tlistinteger, V1};
+	{testHer, tlistinteger, {tlistinteger, V1}};
 decodeBin(30, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	{V1, LeftBin2} = deNumberList(Len1, LeftBin1, []),
-	{tlistnumber, V1};
+	{testHer, tlistnumber, {tlistnumber, V1}};
 decodeBin(31, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:32, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV || <<TemV:32/big-float>> <= ListBin1],
-	{tlistfloat, V1};
+	{testHer, tlistfloat, {tlistfloat, V1}};
 decodeBin(32, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	<<ListBin1:Len1/big-binary-unit:64, LeftBin2/binary>> = LeftBin1,
 	V1 = [TemV || <<TemV:64/big-float>> <= ListBin1],
-	{tlistdouble, V1};
+	{testHer, tlistdouble, {tlistdouble, V1}};
 decodeBin(33, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	RefSize = binary:referenced_byte_size(LeftBin0),
 	{V1, LeftBin2} = deStringList(Len1, LeftBin1, RefSize, []),
-	{tliststring, V1};
+	{testHer, tliststring, {tliststring, V1}};
 decodeBin(34, LeftBin0) ->
 	<<Len1:16/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	{V1, LeftBin2} = deRecordList(Len1, 5, LeftBin1, []),
-	{tlistunion, V1};
+	{testHer, tlistunion, {tlistunion, V1}};
 decodeBin(35, LeftBin0) ->
 	<<Bool1:8/big-unsigned, LeftBin1/binary>> = LeftBin0,
 	V1 = Bool1 =:= 1,
@@ -815,7 +815,7 @@ decodeBin(35, LeftBin0) ->
 	{V54, LeftBin71} = deStringList(Len24, LeftBin70, RefSize, []),
 	<<Len25:16/big-unsigned, LeftBin72/binary>> = LeftBin71,
 	{V55, LeftBin73} = deRecordList(Len25, 5, LeftBin72, []),
-	{allType, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40, V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53, V54, V55};
+	{testHer, allType, {allType, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40, V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53, V54, V55}};
 decodeBin(1001, LeftBin0) ->
 	RefSize = binary:referenced_byte_size(LeftBin0),
 	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
@@ -845,7 +845,7 @@ decodeBin(1001, LeftBin0) ->
 	end,
 	<<Len3:16/big-unsigned, LeftBin4/binary>> = LeftBin3,
 	{V4, LeftBin5} = deRecordList(Len3, 2, LeftBin4, []),
-	{person1, V1, V2, V3, V4};
+	{errorHer, person1, {person1, V1, V2, V3, V4}};
 decodeBin(_, _) ->
-	{{}, <<>>}.
+	{undefined, {}}.
 

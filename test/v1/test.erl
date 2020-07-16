@@ -1,4 +1,4 @@
--module(test2).
+-module(test).
 
 -include("protoMsg.hrl").
 -compile(export_all).
@@ -11,20 +11,20 @@ encode_int32(N) ->
 tt1(0, TT) ->
    ok;
 tt1(N, TT) ->
-   protoMsg:encodeIol(TT),
+   protoMsg:encode(TT),
    tt1(N - 1, TT).
 
 decode_int32(N) ->
    TT = #tint32{int1 = 1, int2 = -1, int3 = 128, int4 = -128, int5 = 65536,
       int6 = -65536, int7 = 2100000000, int8 = -2100000000, int9 = 678665, int10 = -678665},
-   Bin = protoMsg:encodeIol(TT),
-   tt2(N, iolist_to_binary(Bin)).
+   Bin = protoMsg:encode(TT),
+   tt2(N, iolist_to_binary(Bin), 0).
 
-tt2(0, Bin) ->
+tt2(0, Bin, _A) ->
    {protoMsg:decode(Bin), Bin};
-tt2(N, Bin) ->
-   protoMsg:decode(Bin),
-   tt2(N - 1, Bin).
+tt2(N, Bin, _A) ->
+   A = protoMsg:decode(Bin),
+   tt2(N - 1, Bin, A).
 
 encode_addressBook(N) ->
    Add = #addressBook{
@@ -51,7 +51,7 @@ encode_addressBook(N) ->
 tt3(0, Add) ->
    ok;
 tt3(N, Add) ->
-   protoMsg:encodeIol(Add),
+   protoMsg:encode(Add),
    tt3(N - 1, Add).
 
 
@@ -75,7 +75,7 @@ decode_addressBook(N) ->
          }
       ]
    },
-   Bin = protoMsg:encodeIol(AddressBook),
+   Bin = protoMsg:encode(AddressBook),
    tt4(N, iolist_to_binary(Bin)).
 tt4(0, Bin) ->
    Bin;
@@ -84,33 +84,33 @@ tt4(N, Bin) ->
    tt4(N - 1, Bin).
 
 test1() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tbool{bool = true}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tbool{bool = true}))).
 
 test21() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tint8{int1 = 123, int2 = -22}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tint8{int1 = 123, int2 = -22}))).
 
 test22() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tuint8{int1 = 123, int2 = 182}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tuint8{int1 = 123, int2 = 182}))).
 
 test31() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tint16{int1 = 12343, int2 = -3422}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tint16{int1 = 12343, int2 = -3422}))).
 test32() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tuint16{int1 = 43244, int2 = 43243}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tuint16{int1 = 43244, int2 = 43243}))).
 
 test41() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tint32{int1 = 12343434, int2 = -34434322}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tint32{int1 = 12343434, int2 = -34434322}))).
 
 
 test42() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tuint32{int1 = 432444343, int2 = 432443433}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tuint32{int1 = 432444343, int2 = 432443433}))).
 
 test51() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tint64{int1 = 12344343434, int2 = -344343434322}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tint64{int1 = 12344343434, int2 = -344343434322}))).
 test52() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tuint64{int1 = 4343432444343, int2 = 4324434343433}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tuint64{int1 = 4343432444343, int2 = 4324434343433}))).
 
 tt6(N) ->
-   Bin = iolist_to_binary(protoMsg:encodeIol(#tinteger{int1 = -1, int2 = 1, int3 = 128, int4 = -128, int5 = -3244232, int6 = 432423432, int7 = -43434343434434, int8 = 432424242434})),
+   Bin = iolist_to_binary(protoMsg:encode(#tinteger{int1 = -1, int2 = 1, int3 = 128, int4 = -128, int5 = -3244232, int6 = 432423432, int7 = -43434343434434, int8 = 432424242434})),
    <<_MsgId:16/big, MsgBin/binary>> = Bin,
    test6(N, MsgBin).
 
@@ -121,7 +121,7 @@ test6(N, Bin) ->
    test6(N - 1, Bin).
 
 tt66(N) ->
-   Bin = iolist_to_binary(protoMsg:encodeIol(#tinteger{int1 = -1, int2 = 1, int3 = 128, int4 = -128, int5 = -3244232, int6 = 432423432, int7 = -43434343434434, int8 = 432424242434})),
+   Bin = iolist_to_binary(protoMsg:encode(#tinteger{int1 = -1, int2 = 1, int3 = 128, int4 = -128, int5 = -3244232, int6 = 432423432, int7 = -43434343434434, int8 = 432424242434})),
    test66(N, Bin).
 
 test66(0, Bin) ->
@@ -138,7 +138,7 @@ test66(N, Bin) ->
    test66(N - 1, Bin).
 
 tt67(N) ->
-   Bin = iolist_to_binary(protoMsg:encodeIol(#tinteger{int1 = -1, int2 = 1, int3 = 128, int4 = -128, int5 = -3244232, int6 = 432423432, int7 = -43434343434434, int8 = 432424242434})),
+   Bin = iolist_to_binary(protoMsg:encode(#tinteger{int1 = -1, int2 = 1, int3 = 128, int4 = -128, int5 = -3244232, int6 = 432423432, int7 = -43434343434434, int8 = 432424242434})),
    test67(N, Bin).
 
 test67(0, Bin) ->
@@ -149,15 +149,15 @@ test67(N, Bin) ->
    test67(N - 1, Bin).
 
 test7() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tnumber{int1 = -1, int2 = 1, int3 = 128, int4 = -128, int5 = -3244232, int6 = 432423432, int7 = -43434343434434, int8 = 432424242434, float1 = -34234343.343, float2 = 43242342342342.434}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tnumber{int1 = -1, int2 = 1, int3 = 128, int4 = -128, int5 = -3244232, int6 = 432423432, int7 = -43434343434434, int8 = 432424242434, float1 = -34234343.343, float2 = 43242342342342.434}))).
 
 test81() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tfloat{int1 = -34234343.343, int2 = 42342342.434}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tfloat{int1 = -34234343.343, int2 = 42342342.434}))).
 test82() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tdouble{int1 = -342343433333.343, int2 = 423423423333.434}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tdouble{int1 = -342343433333.343, int2 = 423423423333.434}))).
 
 test9() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tstring{int1 = "dfdf143242", int2 = "发地方撒发送"}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encode(#tstring{int1 = "dfdf143242", int2 = "发地方撒发送"}))).
 
 allType() ->
    AllType = #allType{
@@ -216,7 +216,7 @@ allType() ->
       , lstring = ["fdsafsdfsfs", "电风扇打法胜多负少的", <<"fdsfasdfsfs">>, <<"大丰收大丰收的方式"/utf8>>]
       , lunion = [#union{}, #union{type = 1, test = "aaaaa"}, #union{type = 2, test = "嘿嘿嘿嘿"}]
    },
-   List = protoMsg:encodeIol(AllType),
+   List = protoMsg:encode(AllType),
    iolist_to_binary(List),
    %%io:format("~p~n", [List]),
    AllType1 = protoMsg:decode(iolist_to_binary(List)).
@@ -281,7 +281,7 @@ tall1(N) ->
       , lstring = ["fdsafsdfsfs", "电风扇打法胜多负少的", <<"fdsfasdfsfs">>, <<"大丰收大丰收的方式"/utf8>>]
       , lunion = [#union{}, #union{type = 1, test = "aaaaa"}, #union{type = 2, test = "嘿嘿嘿嘿"}]
    },
-   %protoMsg:encodeIol(AllType),
+   %protoMsg:encode(AllType),
    term_to_binary(AllType),
    tall1(N - 1).
 
@@ -343,7 +343,7 @@ tall(N) ->
       , lstring = ["fdsafsdfsfs", "电风扇打法胜多负少的", <<"fdsfasdfsfs">>, <<"大丰收大丰收的方式"/utf8>>]
       , lunion = [#union{}, #union{type = 1, test = "aaaaa"}, #union{type = 2, test = "嘿嘿嘿嘿"}]
    },
-   %List = protoMsg:encodeIol(AllType),
+   %List = protoMsg:encode(AllType),
    tall(N, term_to_binary(AllType)).
 
 tall(0, Bin) ->
@@ -444,7 +444,7 @@ ttt11(N) ->
 ttt11(0, Add) ->
    ok;
 ttt11(N, Add) ->
-   protoMsg:encodeIol(Add),
+   protoMsg:encode(Add),
    ttt11(N - 1, Add).
 
 %%tt1(Add) ->
@@ -459,7 +459,7 @@ ttt11(N, Add) ->
    %]
    %AddressBook = #person{name = "1232134", id = 11111,email = "aaa" ,phone = [#phoneNumber{}] },
    %AddressBook = #phoneNumber{number =#test{aa = "dffsaf"},type = 12 },
-   %%protoMsg:encodeIol(Add).
+   %%protoMsg:encode(Add).
 %ok = file:write_file("fff.bin", Bin),
 %print_bin(Bin),
 %Bin = protoCode:encode(AddressBook),
@@ -500,7 +500,7 @@ tt(N) ->
    %]
    %AddressBook = #person{name = "1232134", id = 11111,email = "aaa" ,phone = [#phoneNumber{}] },
    %AddressBook = #phoneNumber{number =#test{aa = "dffsaf"},type = 12 },
-   Bin = protoMsg:encodeIol(AddressBook),
+   Bin = protoMsg:encode(AddressBook),
    %ok = file:write_file("fff.bin", Bin),
    %print_bin(Bin),
    tt(N, iolist_to_binary(Bin)).

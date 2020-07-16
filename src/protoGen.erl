@@ -8,6 +8,8 @@
    , convertDir/3
 ]).
 
+-define(MsgIdSegSize, 1000).
+
 protoHrlHeader() ->
 "-opaque int8() :: -128..127.
 -opaque int16() :: -32768..32767.
@@ -615,6 +617,10 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
    RetStr =
       case IsForBin of
          true ->
+            MsgIndex = MsgId div ?MsgIdSegSize,
+            Handler = erlang:get(pd_handler),
+            {MsgIndex, ModName} = lists:keyfind(MsgIndex, 1, Handler),
+            HandleName = erlang:binary_to_list(ModName) ++ "Her",
             case FieldLen > 0 of
                true ->
                   FunRec =
@@ -623,9 +629,9 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
 
                      end,
                   RecStr = lists:foldr(FunRec, "", lists:seq(1, FieldLen)),
-                  "\t{" ++ MsgName ++ RecStr ++ "};\n";
+                  "\t{" ++ HandleName ++ ", " ++ MsgName ++ ", {" ++ MsgName ++ RecStr ++ "}};\n";
                _ ->
-                  "\t{" + MsgName ++ "};\n"
+                  "\t{" ++ HandleName ++ ", " ++ MsgName ++ ", {" + MsgName ++ "}};\n"
             end;
          _ ->
             case FieldLen > 0 of
@@ -656,20 +662,24 @@ convertDir(ProtoDir) ->
    convertDir(ProtoDir, "./", "./").
 convertDir(ProtoDir, HrlDir, ErlDir) ->
    erlang:put(pd_errlist, []),
+   erlang:put(pd_handler, []),
    FunRead =
       fun(File, ProAcc) ->
          case filename:extension(File) == ".mpdf" of
             true ->
                io:format("Convert proto msg file: ~s ~n", [File]),
                BaseName = filename:basename(File, ".mpdf"),
-               [ModIndex | _ModName] = re:split(BaseName, "_"),
+               [ModIndex , ModName] = re:split(BaseName, "_"),
                Index = binary_to_integer(ModIndex),
-               erlang:put(pd_messageid, Index * 1000 + 1),
-               erlang:put(pd_errcodeid, Index * 1000 + 1),
+               erlang:put(pd_messageid, Index * ?MsgIdSegSize + 1),
+               erlang:put(pd_handler, [{Index, ModName} | erlang:get(pd_handler)]),
+               erlang:put(pd_errcodeid, Index * ?MsgIdSegSize + 1),
                SProto = protoParse:parseFile(File),
                ErrCode = erlang:get(pd_errlist),
+               Handler = erlang:get(pd_handler),
                erlang:erase(),
                erlang:put(pd_errlist, ErrCode),
+               erlang:put(pd_handler,  Handler),
                [SProto | ProAcc];
             _ ->
                ProAcc
@@ -703,7 +713,7 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
 
          {[HrlStr | MsgHrlAcc], ["Unuse"], [EncodeStr | MsgEncodeAcc], [DecodeStr | MsgDecodeAcc]}
       end,
-   {MsgHrlStr, _MsgIdStr, MsgEncodeStr, MsgDecodeStr} = lists:foldl(FunSpell, {[], ["getMsgId(_) -> 0.\n\n"], ["encodeIol(_, _) ->\n\t[].\n\n"], ["decodeBin(_, _) ->\n\t{{}, <<>>}.\n\n"]}, SortedSProtoList),
+   {MsgHrlStr, _MsgIdStr, MsgEncodeStr, MsgDecodeStr} = lists:foldl(FunSpell, {[], ["getMsgId(_) -> 0.\n\n"], ["encodeIol(_, _) ->\n\t[].\n\n"], ["decodeBin(_, _) ->\n\t{undefinedHer, undefined, {}}.\n\n"]}, SortedSProtoList),
 
    SortedErrList = lists:sort(fun({_ErrName1, ErrCodeId1, _Desc1}, {_ErrName2, ErrCodeId2, _Desc2}) ->
       ErrCodeId1 > ErrCodeId2 end, ErrCodeList),
