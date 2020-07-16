@@ -54,6 +54,14 @@ tt3(N, Add) ->
    protoMsg:encodeIol(Add),
    tt3(N - 1, Add).
 
+getFun(N) ->
+   getFun(N, #addressBook{}, 0).
+
+getFun1(0, Tuple, _A) ->
+   element(1, Tuple);
+getFun1(N, Tuple, _A) ->
+   A = element(1, Tuple),
+   getFun1(N - 1, Tuple, A).
 
 decode_addressBook(N) ->
    AddressBook = #addressBook{
