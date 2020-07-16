@@ -3,7 +3,7 @@
 
 -compile([nowarn_unused_vars]).
 
--export([encodeIol/1, encodeBin/1,  encodeIol/2, subEncode/1, subEncode/2, decode/1,  decodeBin/2]).
+-export([encode/1, decode/1, encodeRec/1, decodeBin/2]).
 
 -define(min8, -128).
 -define(max8, 127).
@@ -33,7 +33,7 @@
 -define(float(V), <<V:32/big-float>>).
 -define(double(V), <<V:64/big-float>>).
 -define(bool(V), (case V of true -> <<1:8>>; _ -> <<0:8>> end)).
--define(record(V), (case V of undefined -> [<<0:8>>]; V -> [<<1:8>>, subEncode(V)] end)).
+-define(record(V), (case V of undefined -> [<<0:8>>]; V -> [<<1:8>>, encodeRec(V)] end)).
 -define(list_bool(List), [<<(length(List)):16/big>>, [?bool(V) || V <- List]]).
 -define(list_int8(List), [<<(length(List)):16/big>>, [?int8(V) || V <- List]]).
 -define(list_uint8(List), [<<(length(List)):16/big>>, [?uint8(V) || V <- List]]).
@@ -48,7 +48,7 @@
 -define(list_integer(List), [<<(length(List)):16/big>>, [integer(V) || V <- List]]).
 -define(list_number(List), [<<(length(List)):16/big>>, [number(V) || V <- List]]).
 -define(list_string(List), [<<(length(List)):16/big>>, [string(V) || V <- List]]).
--define(list_record(List), [<<(length(List)):16/big>>, [subEncode(V) || V <- List]]).
+-define(list_record(List), [<<(length(List)):16/big>>, [encodeRec(V) || V <- List]]).
 
 -define(BinaryShareSize, 65).
 -define(BinaryCopyRatio, 1.2).
@@ -150,99 +150,90 @@ deRecordList(N, MsgId, MsgBin, RetList) ->
    {Tuple, LeftBin} = decodeRec(MsgId, MsgBin),
    deRecordList(N - 1, MsgId, LeftBin, [Tuple | RetList]).
 
-encodeIol(RecMsg) ->
-   encodeIol(erlang:element(1, RecMsg), RecMsg).
-
-encodeBin(RecMsg) ->
-   erlang:iolist_to_binary(encodeIol(RecMsg)).
-
-subEncode(RecMsg) ->
-   subEncode(erlang:element(1, RecMsg), RecMsg).
-
-subEncode(test, {_, V1}) ->
+encodeRec({test, V1}) ->
 	[?string(V1)];
-subEncode(phoneNumber, {_, V1, V2}) ->
+encodeRec({phoneNumber, V1, V2}) ->
 	[?record(V1), ?int32(V2)];
-subEncode(person, {_, V1, V2, V3, V4}) ->
+encodeRec({person, V1, V2, V3, V4}) ->
 	[?string(V1), ?int32(V2), ?string(V3), ?list_record(V4)];
-subEncode(union, {_, V1, V2}) ->
+encodeRec({union, V1, V2}) ->
 	[?string(V1), ?int32(V2)];
-subEncode(_, _) ->
+encodeRec(_) ->
 	[].
 
-encodeIol(test, {_, V1}) ->
+encode({test, V1}) ->
 	[<<1:16/big-unsigned>>, ?string(V1)];
-encodeIol(phoneNumber, {_, V1, V2}) ->
+encode({phoneNumber, V1, V2}) ->
 	[<<2:16/big-unsigned>>, ?record(V1), ?int32(V2)];
-encodeIol(person, {_, V1, V2, V3, V4}) ->
+encode({person, V1, V2, V3, V4}) ->
 	[<<3:16/big-unsigned>>, ?string(V1), ?int32(V2), ?string(V3), ?list_record(V4)];
-encodeIol(addressBook, {_, V1, V2}) ->
+encode({addressBook, V1, V2}) ->
 	[<<4:16/big-unsigned>>, ?list_record(V1), ?list_record(V2)];
-encodeIol(union, {_, V1, V2}) ->
+encode({union, V1, V2}) ->
 	[<<5:16/big-unsigned>>, ?string(V1), ?int32(V2)];
-encodeIol(tbool, {_, V1}) ->
+encode({tbool, V1}) ->
 	[<<6:16/big-unsigned>>, ?bool(V1)];
-encodeIol(tint8, {_, V1, V2}) ->
+encode({tint8, V1, V2}) ->
 	[<<7:16/big-unsigned>>, ?int8(V1), ?int8(V2)];
-encodeIol(tuint8, {_, V1, V2}) ->
+encode({tuint8, V1, V2}) ->
 	[<<8:16/big-unsigned>>, ?uint8(V1), ?uint8(V2)];
-encodeIol(tint16, {_, V1, V2}) ->
+encode({tint16, V1, V2}) ->
 	[<<9:16/big-unsigned>>, ?int16(V1), ?int16(V2)];
-encodeIol(tuint16, {_, V1, V2}) ->
+encode({tuint16, V1, V2}) ->
 	[<<10:16/big-unsigned>>, ?uint16(V1), ?uint16(V2)];
-encodeIol(tint32, {_, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10}) ->
+encode({tint32, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10}) ->
 	[<<11:16/big-unsigned>>, ?int32(V1), ?int32(V2), ?int32(V3), ?int32(V4), ?int32(V5), ?int32(V6), ?int32(V7), ?int32(V8), ?int32(V9), ?int32(V10)];
-encodeIol(tuint32, {_, V1, V2}) ->
+encode({tuint32, V1, V2}) ->
 	[<<12:16/big-unsigned>>, ?uint32(V1), ?uint32(V2)];
-encodeIol(tint64, {_, V1, V2}) ->
+encode({tint64, V1, V2}) ->
 	[<<13:16/big-unsigned>>, ?int64(V1), ?int64(V2)];
-encodeIol(tuint64, {_, V1, V2}) ->
+encode({tuint64, V1, V2}) ->
 	[<<14:16/big-unsigned>>, ?uint64(V1), ?uint64(V2)];
-encodeIol(tinteger, {_, V1, V2, V3, V4, V5, V6, V7, V8}) ->
+encode({tinteger, V1, V2, V3, V4, V5, V6, V7, V8}) ->
 	[<<15:16/big-unsigned>>, ?integer(V1), ?integer(V2), ?integer(V3), ?integer(V4), ?integer(V5), ?integer(V6), ?integer(V7), ?integer(V8)];
-encodeIol(tnumber, {_, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10}) ->
+encode({tnumber, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10}) ->
 	[<<16:16/big-unsigned>>, ?number(V1), ?number(V2), ?number(V3), ?number(V4), ?number(V5), ?number(V6), ?number(V7), ?number(V8), ?number(V9), ?number(V10)];
-encodeIol(tfloat, {_, V1, V2}) ->
+encode({tfloat, V1, V2}) ->
 	[<<17:16/big-unsigned>>, ?float(V1), ?float(V2)];
-encodeIol(tdouble, {_, V1, V2}) ->
+encode({tdouble, V1, V2}) ->
 	[<<18:16/big-unsigned>>, ?double(V1), ?double(V2)];
-encodeIol(tstring, {_, V1, V2}) ->
+encode({tstring, V1, V2}) ->
 	[<<19:16/big-unsigned>>, ?string(V1), ?string(V2)];
-encodeIol(tlistbool, {_, V1}) ->
+encode({tlistbool, V1}) ->
 	[<<20:16/big-unsigned>>, ?list_bool(V1)];
-encodeIol(tlistint8, {_, V1}) ->
+encode({tlistint8, V1}) ->
 	[<<21:16/big-unsigned>>, ?list_int8(V1)];
-encodeIol(tlistuint8, {_, V1}) ->
+encode({tlistuint8, V1}) ->
 	[<<22:16/big-unsigned>>, ?list_uint8(V1)];
-encodeIol(tlistint16, {_, V1}) ->
+encode({tlistint16, V1}) ->
 	[<<23:16/big-unsigned>>, ?list_int16(V1)];
-encodeIol(tlistuint16, {_, V1}) ->
+encode({tlistuint16, V1}) ->
 	[<<24:16/big-unsigned>>, ?list_uint16(V1)];
-encodeIol(tlistint32, {_, V1}) ->
+encode({tlistint32, V1}) ->
 	[<<25:16/big-unsigned>>, ?list_int32(V1)];
-encodeIol(tlistuint32, {_, V1}) ->
+encode({tlistuint32, V1}) ->
 	[<<26:16/big-unsigned>>, ?list_uint32(V1)];
-encodeIol(tlistint64, {_, V1}) ->
+encode({tlistint64, V1}) ->
 	[<<27:16/big-unsigned>>, ?list_int64(V1)];
-encodeIol(tlistuint64, {_, V1}) ->
+encode({tlistuint64, V1}) ->
 	[<<28:16/big-unsigned>>, ?list_uint64(V1)];
-encodeIol(tlistinteger, {_, V1}) ->
+encode({tlistinteger, V1}) ->
 	[<<29:16/big-unsigned>>, ?list_integer(V1)];
-encodeIol(tlistnumber, {_, V1}) ->
+encode({tlistnumber, V1}) ->
 	[<<30:16/big-unsigned>>, ?list_number(V1)];
-encodeIol(tlistfloat, {_, V1}) ->
+encode({tlistfloat, V1}) ->
 	[<<31:16/big-unsigned>>, ?list_float(V1)];
-encodeIol(tlistdouble, {_, V1}) ->
+encode({tlistdouble, V1}) ->
 	[<<32:16/big-unsigned>>, ?list_double(V1)];
-encodeIol(tliststring, {_, V1}) ->
+encode({tliststring, V1}) ->
 	[<<33:16/big-unsigned>>, ?list_string(V1)];
-encodeIol(tlistunion, {_, V1}) ->
+encode({tlistunion, V1}) ->
 	[<<34:16/big-unsigned>>, ?list_record(V1)];
-encodeIol(allType, {_, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40, V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53, V54, V55}) ->
+encode({allType, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40, V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53, V54, V55}) ->
 	[<<35:16/big-unsigned>>, ?bool(V1), ?int8(V2), ?uint8(V3), ?int16(V4), ?uint16(V5), ?int32(V6), ?uint32(V7), ?int64(V8), ?uint64(V9), ?integer(V10), ?integer(V11), ?integer(V12), ?integer(V13), ?integer(V14), ?integer(V15), ?integer(V16), ?integer(V17), ?number(V18), ?number(V19), ?number(V20), ?number(V21), ?number(V22), ?number(V23), ?number(V24), ?number(V25), ?number(V26), ?number(V27), ?float(V28), ?double(V29), ?string(V30), ?string(V31), ?record(V32), ?list_bool(V33), ?list_int8(V34), ?list_uint8(V35), ?list_int16(V36), ?list_uint16(V37), ?list_int32(V38), ?list_uint32(V39), ?list_int64(V40), ?list_uint64(V41), ?list_integer(V42), ?list_integer(V43), ?list_integer(V44), ?list_integer(V45), ?list_number(V46), ?list_number(V47), ?list_number(V48), ?list_number(V49), ?list_number(V50), ?list_number(V51), ?list_float(V52), ?list_double(V53), ?list_string(V54), ?list_record(V55)];
-encodeIol(person1, {_, V1, V2, V3, V4}) ->
+encode({person1, V1, V2, V3, V4}) ->
 	[<<1001:16/big-unsigned>>, ?string(V1), ?int32(V2), ?string(V3), ?list_record(V4)];
-encodeIol(_, _) ->
+encode(_) ->
 	[].
 
 decodeRec(1, LeftBin0) ->

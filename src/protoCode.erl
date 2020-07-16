@@ -1,7 +1,7 @@
 -module(protoCode).
 
 -compile([export_all, nowarn_unused_function, nowarn_export_all]).
--export([encode/1, decode/1, encodeRec/1, decodeBin/2]).
+-export([encodeIol/1, encodeBin/1,  encodeIol/2, subEncode/1, subEncode/2, decode/1,  decodeBin/2]).
 
 -define(min8, -128).
 -define(max8, 127).
@@ -31,7 +31,7 @@
 -define(float(V), <<V:32/big-float>>).
 -define(double(V), <<V:64/big-float>>).
 -define(bool(V), (case V of true -> <<1:8>>; _ -> <<0:8>> end)).
--define(record(V), (case V of undefined -> [<<0:8>>]; V -> [<<1:8>>, encodeRec(V)] end)).
+-define(record(V), (case V of undefined -> [<<0:8>>]; V -> [<<1:8>>, subEncode(V)] end)).
 -define(list_bool(List), [<<(length(List)):16/big>>, [?bool(V) || V <- List]]).
 -define(list_int8(List), [<<(length(List)):16/big>>, [?int8(V) || V <- List]]).
 -define(list_uint8(List), [<<(length(List)):16/big>>, [?uint8(V) || V <- List]]).
@@ -46,7 +46,7 @@
 -define(list_integer(List), [<<(length(List)):16/big>>, [integer(V) || V <- List]]).
 -define(list_number(List), [<<(length(List)):16/big>>, [number(V) || V <- List]]).
 -define(list_string(List), [<<(length(List)):16/big>>, [string(V) || V <- List]]).
--define(list_record(List), [<<(length(List)):16/big>>, [encodeRec(V) || V <- List]]).
+-define(list_record(List), [<<(length(List)):16/big>>, [subEncode(V) || V <- List]]).
 
 -define(BinaryShareSize, 65).        %% binary 大于64时 binary和sub就会share
 -define(BinaryCopyRatio, 1.2).       %% 当总binary的Sise / Sub binary size > 1.2 就重新复制一个
@@ -148,16 +148,23 @@ deRecordList(N, MsgId, MsgBin, RetList) ->
    {Tuple, LeftBin} = decodeRec(MsgId, MsgBin),
    deRecordList(N - 1, MsgId, LeftBin, [Tuple | RetList]).
 
+encodeIol(RecMsg) ->
+   encodeIol(erlang:element(1, RecMsg), RecMsg).
+
+encodeBin(RecMsg) ->
+   erlang:iolist_to_binary(encodeIol(RecMsg)).
+
+subEncode(RecMsg) ->
+   subEncode(erlang:element(1, RecMsg), RecMsg).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%% 防止编译报错占位 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-encode(_) ->
+encodeIol(_, _) ->
    ok.
-encodeRec(_) ->
+subEncode(_, _) ->
    ok.
 decodeBin(_, _) ->
    ok.
 decodeRec(_, _) ->
-   ok.
-getMsgId(_) ->
    ok.
 
 

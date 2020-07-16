@@ -23,7 +23,7 @@ protoErlHeader() ->
 "-module(protoMsg).\n\n
 -compile([nowarn_unused_vars]).
 
--export([encode/1, decode/1, encodeRec/1, decodeBin/2]).
+-export([encodeIol/1, encodeBin/1,  encodeIol/2, subEncode/1, subEncode/2, decode/1,  decodeBin/2]).
 
 -define(min8, -128).
 -define(max8, 127).
@@ -53,7 +53,7 @@ protoErlHeader() ->
 -define(float(V), <<V:32/big-float>>).
 -define(double(V), <<V:64/big-float>>).
 -define(bool(V), (case V of true -> <<1:8>>; _ -> <<0:8>> end)).
--define(record(V), (case V of undefined -> [<<0:8>>]; V -> [<<1:8>>, encodeRec(V)] end)).
+-define(record(V), (case V of undefined -> [<<0:8>>]; V -> [<<1:8>>, subEncode(V)] end)).
 -define(list_bool(List), [<<(length(List)):16/big>>, [?bool(V) || V <- List]]).
 -define(list_int8(List), [<<(length(List)):16/big>>, [?int8(V) || V <- List]]).
 -define(list_uint8(List), [<<(length(List)):16/big>>, [?uint8(V) || V <- List]]).
@@ -68,7 +68,7 @@ protoErlHeader() ->
 -define(list_integer(List), [<<(length(List)):16/big>>, [integer(V) || V <- List]]).
 -define(list_number(List), [<<(length(List)):16/big>>, [number(V) || V <- List]]).
 -define(list_string(List), [<<(length(List)):16/big>>, [string(V) || V <- List]]).
--define(list_record(List), [<<(length(List)):16/big>>, [encodeRec(V) || V <- List]]).
+-define(list_record(List), [<<(length(List)):16/big>>, [subEncode(V) || V <- List]]).
 
 -define(BinaryShareSize, 65).
 -define(BinaryCopyRatio, 1.2).
@@ -168,7 +168,16 @@ deRecordList(0, _MsgId, MsgBin, RetList) ->
    {lists:reverse(RetList), MsgBin};
 deRecordList(N, MsgId, MsgBin, RetList) ->
    {Tuple, LeftBin} = decodeRec(MsgId, MsgBin),
-   deRecordList(N - 1, MsgId, LeftBin, [Tuple | RetList]).\n\n".
+   deRecordList(N - 1, MsgId, LeftBin, [Tuple | RetList]).
+
+encodeIol(RecMsg) ->
+   encodeIol(erlang:element(1, RecMsg), RecMsg).
+
+encodeBin(RecMsg) ->
+   erlang:iolist_to_binary(encodeIol(RecMsg)).
+
+subEncode(RecMsg) ->
+   subEncode(erlang:element(1, RecMsg), RecMsg).\n\n".
 
 genMsgHrl(FieldInfo, {Index, Len, AccList}) ->
    TemStr =
@@ -195,9 +204,9 @@ genEncodeRec({MsgName, MsgId, FieldList}, IsForBin) ->
    HeadStr =
       case IsForBin of
          true ->
-            "encode({" ++ MsgName ++ TemStr;
+            "encodeIol(" ++ MsgName ++ ", {_" ++ TemStr;
          _ ->
-            "encodeRec({" ++ MsgName ++ TemStr
+            "subEncode(" ++ MsgName ++ ", {_" ++ TemStr
       end,
 
    FunBody =
@@ -694,7 +703,7 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
 
          {[HrlStr | MsgHrlAcc], ["Unuse"], [EncodeStr | MsgEncodeAcc], [DecodeStr | MsgDecodeAcc]}
       end,
-   {MsgHrlStr, _MsgIdStr, MsgEncodeStr, MsgDecodeStr} = lists:foldl(FunSpell, {[], ["getMsgId(_) -> 0.\n\n"], ["encode(_) ->\n\t[].\n\n"], ["decodeBin(_, _) ->\n\t{{}, <<>>}.\n\n"]}, SortedSProtoList),
+   {MsgHrlStr, _MsgIdStr, MsgEncodeStr, MsgDecodeStr} = lists:foldl(FunSpell, {[], ["getMsgId(_) -> 0.\n\n"], ["encodeIol(_, _) ->\n\t[].\n\n"], ["decodeBin(_, _) ->\n\t{{}, <<>>}.\n\n"]}, SortedSProtoList),
 
    SortedErrList = lists:sort(fun({_ErrName1, ErrCodeId1, _Desc1}, {_ErrName2, ErrCodeId2, _Desc2}) ->
       ErrCodeId1 > ErrCodeId2 end, ErrCodeList),
@@ -712,7 +721,7 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
          DecodeStr = genDecodeBin(MsgInfo, SortedSProtoList, false),
          {[EncodeStr | SubEncodeAcc], [DecodeStr | SubDecodeAcc]}
       end,
-   {MsgEncodeRecStr, MsgDecodeRecStr} = lists:foldl(FunSubRec, {["encodeRec(_) ->\n\t[].\n\n"], ["decodeRec(_, _) ->\n\t{{}, <<>>}.\n\n"]}, SortedSubRecList),
+   {MsgEncodeRecStr, MsgDecodeRecStr} = lists:foldl(FunSubRec, {["subEncode(_, _) ->\n\t[].\n\n"], ["decodeRec(_, _) ->\n\t{{}, <<>>}.\n\n"]}, SortedSubRecList),
 
    ErlHeaderStr = protoErlHeader(),
    OutputStr = ErlHeaderStr ++ MsgEncodeRecStr ++ MsgEncodeStr ++ MsgDecodeRecStr ++ MsgDecodeStr,
@@ -732,6 +741,11 @@ do_write_hrl(OutDir, Mod, Str) when is_list(OutDir) ->
 
 do_write_erl(OutDir, Mod, Str) when is_list(OutDir) ->
    Filename = filename:join([OutDir, atom_to_list(Mod) ++ ".erl"]),
-   ok = file:write_file(Filename, Str),
+   case file:write_file(Filename, Str) of
+      ok ->
+         ok;
+      _Ret ->
+         io:format("write to erl file error:~p ~n", [_Ret])
+   end,
    Filename.
 
