@@ -12,7 +12,6 @@ Build
     大概瞄过 flatc, ecapnp以及gpb(erlang protobuff)协议, 最后还是决定自己来写个，以后有机会
     也可以用上。由于时间关系，自己只简单评测, 更加详细的，感兴趣可自行评测。已经尽量
     优化了编码解码的代码使其编码解码速度更快
-    开源此项目的目的是希望有人可以来review并提出优化的方法。
     协议文件存放在proto目录 文件名为 Message protocol definition file的缩写 mpdf
     源码目录为src，test目录主要用于生成协议和测试的脚本以及用于测试的代码，有建议提issue,谢谢！
     
