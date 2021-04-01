@@ -1,4 +1,4 @@
--module(gGenErl).
+-module(gErlGen).
 -include("genDef.hrl").
 
 -export([
