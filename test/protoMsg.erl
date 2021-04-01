@@ -847,5 +847,5 @@ decodeBin(1001, LeftBin0) ->
 	{V4, LeftBin5} = deRecordList(Len3, 2, LeftBin4, []),
 	{errorHer, person1, {person1, V1, V2, V3, V4}};
 decodeBin(_, _) ->
-	{undefined, {}}.
+	{undefinedHer, undefined, {}}.
 

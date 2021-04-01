@@ -1,0 +1,1 @@
+-define(MsgIdSegSize, 1000).

@@ -1,4 +1,4 @@
--module(protoCode).
+-module(gErlCode).
 
 -compile([export_all, nowarn_unused_function, nowarn_export_all]).
 -export([encodeIol/1, encodeBin/1,  encodeIol/2, subEncode/1, subEncode/2, decode/1,  decodeBin/2]).

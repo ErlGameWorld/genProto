@@ -1,1 +1,1 @@
-erl -pa ../ebin -s protoGen convert ../proto ./ ./
+erl -pa ../ebin -s genProto convert ../proto ./ ./
