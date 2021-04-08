@@ -685,7 +685,7 @@ genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir) ->
          resetPd(),
          DecodeStr = genDecodeBin(MsgInfo, SortedSProtoList, true),
 
-         {<<MsgHrlAcc/binary, HrlStr/binary>>,  <<MsgEncodeAcc/binary, EncodeStr/binary>>, <<MsgDecodeAcc/binary, DecodeStr/binary>>, <<MsgIdAcc/binary, IdStr/binary>>, <<MsgNameAcc/binary, NameStr/binary>>}
+         {<<MsgHrlAcc/binary, HrlStr/binary>>, <<MsgEncodeAcc/binary, EncodeStr/binary>>, <<MsgDecodeAcc/binary, DecodeStr/binary>>, <<MsgIdAcc/binary, IdStr/binary>>, <<MsgNameAcc/binary, NameStr/binary>>}
       end,
    {MsgHrlStr, TMsgEncodeStr, TMsgDecodeStr, _TMsgIdStr, _TMsgNameStr} = lists:foldl(FunSpell, {<<>>, <<>>, <<>>, <<>>, <<>>}, SortedSProtoList),
    MsgEncodeStr = <<TMsgEncodeStr/binary, "encodeIol(_, _) ->\n\t[].\n\n">>,
@@ -734,7 +734,7 @@ do_write_hrl(OutDir, Mod, BinStr) ->
    ok = file:write_file(Filename, BinStr),
    Filename.
 
-do_write_erl(OutDir, Mod, BinStr ) ->
+do_write_erl(OutDir, Mod, BinStr) ->
    Filename = filename:join([OutDir, atom_to_list(Mod) ++ ".erl"]),
    case file:write_file(Filename, BinStr) of
       ok ->
