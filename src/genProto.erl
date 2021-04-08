@@ -11,7 +11,25 @@
 ]).
 
 convertFile(File) ->
-   protoParse:parseFile(File).
+   erlang:erase(),
+   erlang:put(pd_errlist, []),
+   erlang:put(pd_handler, []),
+   case filename:extension(File) == ".mpdf" of
+      true ->
+         io:format("Convert proto msg file: ~s ~n", [File]),
+         BaseName = filename:basename(File, ".mpdf"),
+         [ModIndex, ModName] = re:split(BaseName, "_"),
+         Index = binary_to_integer(ModIndex),
+         erlang:put(pd_messageid, Index * ?MsgIdSegSize + 1),
+         erlang:put(pd_handler, [{Index, ModName} | erlang:get(pd_handler)]),
+         erlang:put(pd_errcodeid, Index * ?MsgIdSegSize + 1),
+         SProto = protoParse:parseFile(File),
+         ErrCode = erlang:get(pd_errlist),
+         Handler = erlang:get(pd_handler),
+         {SProto, Handler, ErrCode};
+      _ ->
+         io:format("not proto msg file: ~s ~n", [File])
+   end.
 
 convert([ProtoDir, HrlDir, ErlDir]) ->
    convertDir(atom_to_list(ProtoDir), atom_to_list(HrlDir), atom_to_list(ErlDir)).
@@ -21,6 +39,7 @@ convertDir() ->
 convertDir(ProtoDir) ->
    convertDir(ProtoDir, "./", "./").
 convertDir(ProtoDir, HrlDir, ErlDir) ->
+   erlang:erase(),
    erlang:put(pd_errlist, []),
    erlang:put(pd_handler, []),
    FunRead =

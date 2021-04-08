@@ -56,7 +56,7 @@ parseParse(Input) when is_binary(Input) ->
          (p_seq([p_label('name', fun 'name'/2), fun 'blank0'/2, p_label('structural', fun 'structural'/2)]))(I, D)
       end,
       fun(Node, _Idx) ->
-         Name = binary_to_list(iolist_to_binary(proplists:get_value(name, Node))),
+         Name = iolist_to_binary(proplists:get_value(name, Node)),
          Structural = proplists:get_value(structural, Node),
          MsgId = erlang:get(pd_messageid),
          erlang:put(pd_messageid, MsgId + 1),
@@ -80,8 +80,8 @@ parseParse(Input) when is_binary(Input) ->
          (p_seq([p_label('datatype', fun 'typename'/2), fun 'blanks'/2, p_label('name', fun 'name'/2), fun 'blank0'/2, p_string(<<";">>)]))(I, D)
       end,
       fun(Node, _Idx) ->
-         DataType = binary_to_list(iolist_to_binary(proplists:get_value(datatype, Node))),
-         Name = binary_to_list(iolist_to_binary(proplists:get_value(name, Node))),
+         DataType = iolist_to_binary(proplists:get_value(datatype, Node)),
+         Name = iolist_to_binary(proplists:get_value(name, Node)),
          {DataType, Name}
       end).
 
@@ -124,10 +124,10 @@ parseParse(Input) when is_binary(Input) ->
       fun(Node, _Idx) ->
          ErrNameList = proplists:get_value('errname', Node),
          ErrCodeStrList = proplists:get_value('errcode_str', Node),
-         ErrName = binary_to_list(iolist_to_binary(ErrNameList)),
-         Desc = binary_to_list(iolist_to_binary(ErrCodeStrList)),
+         ErrName = iolist_to_binary(ErrNameList),
+         Desc = iolist_to_binary(ErrCodeStrList),
          ErrList = erlang:get(pd_errlist),
-         UpErrName = string:to_upper(ErrName),
+         UpErrName = toUpperStr(ErrName),
          case UpErrName =/= [] andalso lists:keyfind(UpErrName, 1, ErrList) == false of
             true ->
                ErrCodeId = erlang:get(pd_errcodeid),
@@ -458,7 +458,7 @@ p_charclass(Class) ->
             {Head, Tail} = erlang:split_binary(Inp, Length),
             {Head, Tail, p_advance_index(Head, Index)};
          _ ->
-            {fail, {expected, {character_class, binary_to_list(Class)}, Index}}
+            {fail, {expected, {character_class, Class}, Index}}
       end
    end.
 -endif.
@@ -473,7 +473,7 @@ p_regexp(Regexp) ->
             {Head, Tail} = erlang:split_binary(Inp, Length),
             {Head, Tail, p_advance_index(Head, Index)};
          _ ->
-            {fail, {expected, {regexp, binary_to_list(Regexp)}, Index}}
+            {fail, {expected, {regexp, Regexp}, Index}}
       end
    end.
 -endif.
@@ -499,3 +499,26 @@ p_advance_index(MatchedInput, Index) when is_integer(MatchedInput) -> % single c
       $\n -> {{line, Line + 1}, {column, 1}};
       _ -> {{line, Line}, {column, Col + 1}}
    end.
+
+toUpperStr(ListStr) when is_list(ListStr) ->
+   [
+      begin
+         case C >= $a andalso C =< $z of
+            true ->
+               C - 32;
+            _ ->
+               C
+         end
+      end || C <- ListStr
+   ];
+toUpperStr(BinStr) when is_binary(BinStr) ->
+   <<
+      begin
+         case C >= $a andalso C =< $z of
+            true ->
+               <<(C - 32)>>;
+            _ ->
+               <<C>>
+         end
+      end || <<C:8>> <= BinStr
+   >>.
