@@ -6,18 +6,18 @@
 ]).
 
 protoHrlHeader() ->
-   "-opaque int8() :: -128..127.
-   -opaque int16() :: -32768..32767.
-   -opaque int32() :: -2147483648..2147483647.
-   -opaque int64() :: -9223372036854775808..9223372036854775807.
-   -opaque uint8() :: 0..255.
-   -opaque uint16() :: 0..65536.
-   -opaque uint32() :: 0..4294967295.
-   -opaque uint64() :: 0..18446744073709551615.
-   -opaque double() :: float().\n\n".
+<<"-opaque int8() :: -128..127.
+-opaque int16() :: -32768..32767.
+-opaque int32() :: -2147483648..2147483647.
+-opaque int64() :: -9223372036854775808..9223372036854775807.
+-opaque uint8() :: 0..255.
+-opaque uint16() :: 0..65536.
+-opaque uint32() :: 0..4294967295.
+-opaque uint64() :: 0..18446744073709551615.
+-opaque double() :: float().\n\n">>.
 
 protoErlHeader() ->
-"-module(protoMsg).\n\n
+<<"-module(protoMsg).\n\n
 -compile([nowarn_unused_vars]).
 
 -export([encodeIol/1, encodeBin/1,  encodeIol/2, subEncode/1, subEncode/2, decode/1,  decodeBin/2]).
@@ -174,65 +174,68 @@ encodeBin(RecMsg) ->
    erlang:iolist_to_binary(encodeIol(RecMsg)).
 
 subEncode(RecMsg) ->
-   subEncode(erlang:element(1, RecMsg), RecMsg).\n\n".
+   subEncode(erlang:element(1, RecMsg), RecMsg).\n\n">>.
 
-genMsgHrl(FieldInfo, {Index, Len, AccList}) ->
+genMsgHrl([], _Index, _Len, HrlBinStr) ->
+   HrlBinStr;
+genMsgHrl([FieldInfo | FieldList], Index, Len, HrlBinStr) ->
    TemStr =
       case Index of
-         1 ->
-            "";
+         Len ->
+            <<"">>;
          _ ->
-            ", "
+            <<", ">>
       end,
-   RecStr = TemStr ++ gErlField:builtRecStr(FieldInfo) ++ (case Index == Len of true -> ""; _ -> "\t" end),
-   {Index - 1, Len, [RecStr | AccList]}.
+   RecStr = <<TemStr/binary, (gErlField:builtRecStr(FieldInfo))/binary, (case Index == 1 of true -> <<"">>; _ -> <<"\t">> end)/binary>>,
+   genMsgHrl(FieldList, Index - 1, Len, <<HrlBinStr/binary, RecStr/binary>>).
 
-genErrCodeHrl({ErrName, ErrCodeId, ComDesc}, AccList) ->
-   Str = "-define(" ++ ErrName ++ ", " ++ integer_to_list(ErrCodeId) ++ ").\t\t%% " ++ ComDesc ++ "\n",
-   [Str | AccList].
+spellHead([], _Index, HeadBinStr) ->
+   HeadBinStr;
+spellHead([_FieldInfo | FieldList], Index, HeadBinStr) ->
+   spellHead(FieldList, Index + 1, <<HeadBinStr/binary, ", V", (integer_to_binary(Index))/binary>>).
+
+spellBody([], _Index, BodyBinStr) ->
+   BodyBinStr;
+spellBody([{FieldType, _FieldName}], Index, BodyBinStr) ->
+   TemV = <<"V", (integer_to_binary(Index))/binary>>,
+   <<BodyBinStr/binary, (gErlField:builtPackStr(FieldType))/binary, TemV/binary, ")">>;
+spellBody([{FieldType, _FieldName} | FieldList], Index, BodyBinStr) ->
+   TemV = <<"V", (integer_to_binary(Index))/binary>>,
+   NewBodyBinStr = <<BodyBinStr/binary, (gErlField:builtPackStr(FieldType))/binary, TemV/binary, "), ">>,
+   spellBody(FieldList, Index + 1, NewBodyBinStr).
+
+spellErrCodeHrl([], ErrBinStr) ->
+   ErrBinStr;
+spellErrCodeHrl([{ErrName, ErrCodeId, ComDesc} | SortedErrList], ErrBinStr) ->
+   ErrStr = <<"-define(", ErrName/binary, ", ", (integer_to_binary(ErrCodeId))/binary, ").\t\t%% ", ComDesc/binary, "\n">>,
+   spellErrCodeHrl(SortedErrList, <<ErrBinStr/binary, ErrStr/binary>>).
 
 genEncodeRec({MsgName, MsgId, FieldList}, IsForBin) ->
    FieldLen = length(FieldList),
-   FunHead =
-      fun(_, {Index, StrAcc}) ->
-         {Index - 1, ", V" ++ integer_to_list(Index) ++ StrAcc}
-      end,
-   {_, TemStr} = lists:foldr(FunHead, {FieldLen, "}) ->\n\t"}, FieldList),
+   TemStr = spellHead(FieldList, 1, <<"">>),
    HeadStr =
       case IsForBin of
          true ->
-            "encodeIol(" ++ MsgName ++ ", {_" ++ TemStr;
+            <<"encodeIol(", MsgName/binary, ", {_", TemStr/binary, "}) ->\n\t">>;
          _ ->
-            "subEncode(" ++ MsgName ++ ", {_" ++ TemStr
+            <<"subEncode(", MsgName/binary, ", {_", TemStr/binary, "}) ->\n\t">>
       end,
 
-   FunBody =
-      fun({FieldType, _FieldName}, {Index, PStrAcc}) ->
-         TemV = "V" ++ integer_to_list(Index),
-         PackStr = gErlField:builtPackStr(FieldType) ++ TemV ++ ")",
-         case Index == 1 of
-            true ->
-               {Index - 1, PackStr ++ PStrAcc};
-            _ ->
-               {Index - 1, ", " ++ PackStr ++ PStrAcc}
-
-         end
-      end,
-   {_, BodyStr} = lists:foldr(FunBody, {FieldLen, ""}, FieldList),
+   BodyStr = spellBody(FieldList, 1, <<"">>),
    case IsForBin of
       true ->
          case FieldLen > 0 of
             true ->
-               HeadStr ++ "[<<" ++ integer_to_list(MsgId) ++ ":16/big-unsigned>>, " ++ BodyStr ++ "];\n";
+               <<HeadStr/binary, "[<<", (integer_to_binary(MsgId))/binary, ":16/big-unsigned>>, ", BodyStr/binary, "];\n">>;
             _ ->
-               HeadStr ++ "[<<" ++ integer_to_list(MsgId) ++ ":16/big-unsigned>>];\n"
+               <<HeadStr/binary, "[<<", (integer_to_binary(MsgId))/binary, ":16/big-unsigned>>];\n">>
          end;
       _ ->
          case FieldLen > 0 of
             true ->
-               HeadStr ++ "[" ++ BodyStr ++ "];\n";
+               <<HeadStr/binary, "[", BodyStr/binary, "];\n">>;
             _ ->
-               HeadStr ++ "[];\n"
+               <<HeadStr/binary, "[];\n">>
          end
    end.
 
@@ -249,12 +252,12 @@ resetPd() ->
 
 getIndexStr(Type) ->
    Index = erlang:get(Type),
-   erlang:integer_to_list(Index).
+   integer_to_binary(Index).
 
 useIndexStr(Type) ->
    Index = erlang:get(Type) + 1,
    erlang:put(Type, Index),
-   erlang:integer_to_list(Index).
+   integer_to_binary(Index).
 
 isCalcRefSize() ->
    erlang:get(pd_isCalcRefSize) > 0.
@@ -265,6 +268,12 @@ initSubRec() ->
 getSubRec() ->
    erlang:get(pd_subRec).
 
+initSubSubRec() ->
+   erlang:put(pd_subSubRec, []).
+
+getSubSubRec() ->
+   erlang:get(pd_subSubRec).
+
 addSubRec({MsgName, _MsgId, _FieldList} = Info, IsForBin) when IsForBin ->
    OldList = erlang:get(pd_subRec),
    case lists:keyfind(MsgName, 1, OldList) of
@@ -273,157 +282,170 @@ addSubRec({MsgName, _MsgId, _FieldList} = Info, IsForBin) when IsForBin ->
       _ ->
          ignore
    end;
-addSubRec(_Info, _IsForBin) ->
-   ignore.
+addSubRec({MsgName, _MsgId, _FieldList} = Info, _IsForBin) ->
+   OldAllList = erlang:get(pd_subRec),
+   case lists:keyfind(MsgName, 1, OldAllList) of
+      false ->
+         erlang:put(pd_subRec, [Info | OldAllList]),
+         OldSubList = erlang:get(pd_subSubRec),
+         case lists:keyfind(MsgName, 1, OldSubList) of
+            false ->
+               erlang:put(pd_subSubRec, [Info | OldSubList]);
+            _ ->
+               ignore
+         end;
+      _ ->
+         ignore
+   end.
 
 genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
    FieldLen = length(FieldList),
    case IsForBin of
       true ->
-         HeadStr = "decodeBin(" ++ integer_to_list(MsgId) ++ ", LeftBin" ++ getIndexStr(pd_leftBin) ++ ") ->\n";
+         HeadStr = <<"decodeBin(", (integer_to_binary(MsgId))/binary, ", LeftBin", (getIndexStr(pd_leftBin))/binary, ") ->\n">>;
       _ ->
-         HeadStr = "decodeRec(" ++ integer_to_list(MsgId) ++ ", LeftBin" ++ getIndexStr(pd_leftBin) ++ ") ->\n"
+         HeadStr = <<"decodeRec(", (integer_to_binary(MsgId))/binary, ", LeftBin", (getIndexStr(pd_leftBin))/binary, ") ->\n">>
    end,
 
    FunBody =
       fun({FieldType, _FieldName}, {IsSimple, StrAcc}) ->
          case FieldType of
-            "bool" ->
+            <<"bool">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         GetLeftBinStr1 = getIndexStr(pd_leftBin),
                         UseLeftBinStr1 = useIndexStr(pd_leftBin),
-                        "LeftBin" ++ UseLeftBinStr1 ++ "/binary>> = LeftBin" ++ GetLeftBinStr1 ++ ",\n";
+                        <<"LeftBin", UseLeftBinStr1/binary, "/binary>> = LeftBin", GetLeftBinStr1/binary, ",\n">>;
                      _ ->
-                        ""
+                        <<"">>
                   end,
                UseBoolStr = useIndexStr(pd_bool),
                GetLeftBinStr2 = getIndexStr(pd_leftBin),
                UseLeftBinStr2 = useIndexStr(pd_leftBin),
-               BoolStr = "\t<<Bool" ++ UseBoolStr ++ ":8/big-unsigned, LeftBin" ++ UseLeftBinStr2 ++ "/binary>> = LeftBin" ++ GetLeftBinStr2 ++ ",\n",
+               BoolStr = <<"\t<<Bool", UseBoolStr/binary, ":8/big-unsigned, LeftBin", UseLeftBinStr2/binary, "/binary>> = LeftBin", GetLeftBinStr2/binary, ",\n">>,
                UseVStr = useIndexStr(pd_v),
-               VStr = "\tV" ++ UseVStr ++ " = Bool" ++ UseBoolStr ++ " =:= 1,\n",
-               {false, StrAcc ++ TemStr ++ BoolStr ++ VStr};
-            "int8" ->
+               VStr = <<"\tV", UseVStr/binary, " = Bool", UseBoolStr/binary, " =:= 1,\n">>,
+               {false, <<StrAcc/binary, TemStr/binary, BoolStr/binary, VStr/binary>>};
+            <<"int8">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
-                        "V" ++ UseVStr ++ ":8/big-signed, ";
+                        <<"V", UseVStr/binary, ":8/big-signed, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
-                        "\t<<V" ++ UseVStr ++ ":8/big-signed, "
+                        <<"\t<<V", UseVStr/binary, ":8/big-signed, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "uint8" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"uint8">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
-                        "V" ++ UseVStr ++ ":8/big-unsigned, ";
+                        <<"V", UseVStr/binary, ":8/big-unsigned, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
-                        "\t<<V" ++ UseVStr ++ ":8/big-unsigned, "
+                        <<"\t<<V", UseVStr/binary, ":8/big-unsigned, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "int16" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"int16">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
-                        "V" ++ UseVStr ++ ":16/big-signed, ";
+                        <<"V", UseVStr/binary, ":16/big-signed, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
-                        "\t<<V" ++ UseVStr ++ ":16/big-signed, "
+                        <<"\t<<V", UseVStr/binary, ":16/big-signed, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "uint16" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"uint16">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
-                        "V" ++ UseVStr ++ ":16/big-unsigned, ";
+                        <<"V", UseVStr/binary, ":16/big-unsigned, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
-                        "\t<<V" ++ UseVStr ++ ":16/big-unsigned, "
+                        <<"\t<<V", UseVStr/binary, ":16/big-unsigned, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "int32" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"int32">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
-                        "V" ++ UseVStr ++ ":32/big-signed, ";
+                        <<"V", UseVStr/binary, ":32/big-signed, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
-                        "\t<<V" ++ UseVStr ++ ":32/big-signed, "
+                        <<"\t<<V", UseVStr/binary, ":32/big-signed, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "uint32" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"uint32">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
-                        "V" ++ UseVStr ++ ":32/big-unsigned, ";
+                        <<"V", UseVStr/binary, ":32/big-unsigned, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
-                        "\t<<V" ++ UseVStr ++ ":32/big-unsigned, "
+                        <<"\t<<V", UseVStr/binary, ":32/big-unsigned, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "int64" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"int64">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
-                        "V" ++ UseVStr ++ ":64/big-signed, ";
+                        <<"V", UseVStr/binary, ":64/big-signed, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
-                        "\t<<V" ++ UseVStr ++ ":64/big-signed, "
+                        <<"\t<<V", UseVStr/binary, ":64/big-signed, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "uint64" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"uint64">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
-                        "V" ++ UseVStr ++ ":64/big-unsigned, ";
+                        <<"V", UseVStr/binary, ":64/big-unsigned, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
-                        "\t<<V" ++ UseVStr ++ ":64/big-unsigned, "
+                        <<"\t<<V", UseVStr/binary, ":64/big-unsigned, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "float" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"float">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
-                        "V" ++ UseVStr ++ ":32/big-float, ";
+                        <<"V", UseVStr/binary, ":32/big-float, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
-                        "\t<<V" ++ UseVStr ++ ":32/big-float, "
+                        <<"\t<<V", UseVStr/binary, ":32/big-float, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "double" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"double">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
-                        "V" ++ UseVStr ++ ":64/big-float, ";
+                        <<"V", UseVStr/binary, ":64/big-float, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
-                        "\t<<V" ++ UseVStr ++ ":64/big-float, "
+                        <<"\t<<V", UseVStr/binary, ":64/big-float, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "string" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"string">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         GetLeftBinStr1 = getIndexStr(pd_leftBin),
                         UseLeftBinStr1 = useIndexStr(pd_leftBin),
-                        "LeftBin" ++ UseLeftBinStr1 ++ "/binary>> = LeftBin" ++ GetLeftBinStr1 ++ ",\n";
+                        <<"LeftBin", UseLeftBinStr1/binary, "/binary>> = LeftBin", GetLeftBinStr1/binary, ",\n">>;
                      _ ->
-                        ""
+                        <<"">>
                   end,
                UseLenStr = useIndexStr(pd_len),
                GetLeftBinStr2 = getIndexStr(pd_leftBin),
@@ -433,61 +455,62 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
                   case isCalcRefSize() of
                      false ->
                         useIndexStr(pd_isCalcRefSize),
-                        "\tRefSize = binary:referenced_byte_size(LeftBin0),\n";
+                        <<"\tRefSize = binary:referenced_byte_size(LeftBin0),\n">>;
                      _ ->
-                        ""
+                        <<"">>
                   end,
-               StrStr = "\t<<Len" ++ UseLenStr ++ ":16/big-unsigned, TemStrV" ++ UseVStr ++ ":Len" ++ UseLenStr ++ "/binary, LeftBin" ++ UseLeftBinStr2 ++ "/binary>> = LeftBin" ++ GetLeftBinStr2 ++ ",\n",
-               VStr = "\tcase Len" ++ UseLenStr ++ " < ?BinaryShareSize of\n\t\t" ++
-                  "true ->\n\t\t\tV" ++ UseVStr ++ " = TemStrV" ++ UseVStr ++ ";\n\t\t" ++
-                  "_ ->\n\t\t\tcase RefSize / Len" ++ UseLenStr ++ " > ?BinaryCopyRatio of\n\t\t\t\t" ++
-                  "true ->\n\t\t\t\t\tV" ++ UseVStr ++ " = binary:copy(TemStrV" ++ UseVStr ++ ");\n\t\t\t\t" ++
-                  "_ ->\n\t\t\t\t\tV" ++ UseVStr ++ " = TemStrV" ++ UseVStr ++ "\n\t\t\tend\n\tend,\n",
-               {false, StrAcc ++ TemStr ++ RefSizeStr ++ StrStr ++ VStr};
-            "integer" ->
+               StrStr = <<"\t<<Len", UseLenStr/binary, ":16/big-unsigned, TemStrV", UseVStr/binary, ":Len", UseLenStr/binary, "/binary, LeftBin", UseLeftBinStr2/binary, "/binary>> = LeftBin", GetLeftBinStr2/binary, ",\n">>,
+               VStr = <<"\tcase Len", UseLenStr/binary, " < ?BinaryShareSize of\n\t\t",
+                  "true ->\n\t\t\tV", UseVStr/binary, " = TemStrV", UseVStr/binary, ";\n\t\t",
+                  "_ ->\n\t\t\tcase RefSize / Len", UseLenStr/binary, " > ?BinaryCopyRatio of\n\t\t\t\t",
+                  "true ->\n\t\t\t\t\tV", UseVStr/binary, " = binary:copy(TemStrV", UseVStr/binary, ");\n\t\t\t\t",
+                  "_ ->\n\t\t\t\t\tV", UseVStr/binary, " = TemStrV", UseVStr/binary, "\n\t\t\tend\n\tend,\n">>,
+               {false, <<StrAcc/binary, TemStr/binary, RefSizeStr/binary, StrStr/binary, VStr/binary>>};
+            <<"integer">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         UseVStr = useIndexStr(pd_v),
                         UseIntBitsStr = useIndexStr(pd_intBits),
-                        "IntBits" ++ UseIntBitsStr ++ ":8, " ++ "V" ++ UseVStr ++ ":IntBits" ++ UseIntBitsStr ++ "/big-signed, ";
+                        <<"IntBits", UseIntBitsStr/binary, ":8, V", UseVStr/binary, ":IntBits", UseIntBitsStr/binary, "/big-signed, ">>;
                      _ ->
                         UseVStr = useIndexStr(pd_v),
                         UseIntBitsStr = useIndexStr(pd_intBits),
-                        "\t<<IntBits" ++ UseIntBitsStr ++ ":8, " ++ "V" ++ UseVStr ++ ":IntBits" ++ UseIntBitsStr ++ "/big-signed, "
+                        <<"\t<<IntBits", UseIntBitsStr/binary, ":8, V", UseVStr/binary, ":IntBits", UseIntBitsStr/binary, "/big-signed, ">>
                   end,
-               {true, StrAcc ++ TemStr};
-            "number" ->
+               {true, <<StrAcc/binary, TemStr/binary>>};
+            <<"number">> ->
                TemStr =
                   case IsSimple of
                      true ->
                         GetLeftBinStr1 = getIndexStr(pd_leftBin),
                         UseLeftBinStr1 = useIndexStr(pd_leftBin),
-                        "LeftBin" ++ UseLeftBinStr1 ++ "/binary>> = LeftBin" ++ GetLeftBinStr1 ++ ",\n";
+                        <<"LeftBin", UseLeftBinStr1/binary, "/binary>> = LeftBin", GetLeftBinStr1/binary, ",\n">>;
                      _ ->
-                        ""
+                        <<"">>
                   end,
                UseNumBitsStr = useIndexStr(pd_numBits),
                GetLeftBinStr2 = getIndexStr(pd_leftBin),
                UseLeftBinStr2 = useIndexStr(pd_leftBin),
-               NumStr = "\t<<NumBits" ++ UseNumBitsStr ++ ":8, LeftBin" ++ UseLeftBinStr2 ++ "/binary>> = LeftBin" ++ GetLeftBinStr2 ++ ",\n",
+               NumStr = <<"\t<<NumBits", UseNumBitsStr/binary, ":8, LeftBin", UseLeftBinStr2/binary, "/binary>> = LeftBin", GetLeftBinStr2/binary, ",\n">>,
                UseVStr = useIndexStr(pd_v),
                UseLeftBinStr3 = useIndexStr(pd_leftBin),
                VStr =
-                  "\tcase NumBits" ++ UseNumBitsStr ++ " of\n\t\t33-> \n\t\t\t<<V" ++ UseVStr ++ ":32/big-float, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ UseLeftBinStr2 ++
-                  ";\n\t\t65 ->\n\t\t\t<<V" ++ UseVStr ++ ":64/big-float, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ UseLeftBinStr2 ++
-                  ";\n\t\t_ ->\n\t\t\t<<V" ++ UseVStr ++ ":NumBits" ++ UseNumBitsStr ++ "/big-signed, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ UseLeftBinStr2 ++ "\n\tend,\n",
-               {false, StrAcc ++ TemStr ++ NumStr ++ VStr};
-            "list[" ++ LeftStr ->
-               [SubTypeStr | _] = re:split(LeftStr, "\\]", [{return, list}]),
+                  <<"\tcase NumBits", UseNumBitsStr/binary, " of\n\t\t33-> \n\t\t\t<<V", UseVStr/binary, ":32/big-float, LeftBin", UseLeftBinStr3/binary,
+                  "/binary>> = LeftBin", UseLeftBinStr2/binary, ";\n\t\t65 ->\n\t\t\t<<V", UseVStr/binary, ":64/big-float, LeftBin", UseLeftBinStr3/binary,
+                  "/binary>> = LeftBin", UseLeftBinStr2/binary, ";\n\t\t_ ->\n\t\t\t<<V", UseVStr/binary, ":NumBits", UseNumBitsStr/binary, "/big-signed, LeftBin", UseLeftBinStr3/binary,
+                  "/binary>> = LeftBin", UseLeftBinStr2/binary, "\n\tend,\n">>,
+               {false, <<StrAcc/binary, TemStr/binary, NumStr/binary, VStr/binary>>};
+            <<"list[", LeftStr/binary>> ->
+               [SubTypeStr | _] = re:split(LeftStr, <<"\\]">>, [{return, binary}]),
                TemStr =
                   case IsSimple of
                      true ->
                         GetLeftBinStr1 = getIndexStr(pd_leftBin),
                         UseLeftBinStr1 = useIndexStr(pd_leftBin),
-                        "LeftBin" ++ UseLeftBinStr1 ++ "/binary>> = LeftBin" ++ GetLeftBinStr1 ++ ",\n";
+                        <<"LeftBin", UseLeftBinStr1/binary, "/binary>> = LeftBin", GetLeftBinStr1/binary, ",\n">>;
                      _ ->
-                        ""
+                        <<"">>
                   end,
 
                UseLenStr = useIndexStr(pd_len),
@@ -497,100 +520,100 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
                UseListBinStr = useIndexStr(pd_listBin),
                GetLeftBinStr3 = getIndexStr(pd_leftBin),
                UseLeftBinStr3 = useIndexStr(pd_leftBin),
-               LenStr = "\t<<Len" ++ UseLenStr ++ ":16/big-unsigned, LeftBin" ++ UseLeftBinStr2 ++ "/binary>> = LeftBin" ++ GetLeftBinStr2 ++ ",\n",
+               LenStr = <<"\t<<Len", UseLenStr/binary, ":16/big-unsigned, LeftBin", UseLeftBinStr2/binary, "/binary>> = LeftBin", GetLeftBinStr2/binary, ",\n">>,
                DeListStr =
                   case SubTypeStr of
-                     "bool" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:8, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV =:= 1 || <<TemV:8/big-unsigned>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "int8" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:8, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:8/big-signed>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "uint8" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:8, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:8/big-unsigned>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "int16" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:16, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:16/big-signed>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "uint16" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:16, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:16/big-unsigned>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "int32" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:32, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:32/big-signed>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "uint32" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:32, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:32/big-unsigned>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "int64" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:64, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:64/big-signed>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "uint64" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:64, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:64/big-unsigned>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "integer" ->
-                        "\t{V" ++ UseVStr ++ ", LeftBin" ++ UseLeftBinStr3 ++ "} = deIntegerList(Len" ++ UseLenStr ++ ", LeftBin" ++ GetLeftBinStr3 ++ ", []),\n";
-                     "number" ->
-                        "\t{V" ++ UseVStr ++ ", LeftBin" ++ UseLeftBinStr3 ++ "} = deNumberList(Len" ++ UseLenStr ++ ", LeftBin" ++ GetLeftBinStr3 ++ ", []),\n";
-                     "float" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:32, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:32/big-float>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "double" ->
-                        ListBinStr = "\t<<ListBin" ++ UseListBinStr ++ ":Len" ++ UseLenStr ++ "/big-binary-unit:64, LeftBin" ++ UseLeftBinStr3 ++ "/binary>> = LeftBin" ++ GetLeftBinStr3 ++ ",\n",
-                        VStr = "\tV" ++ UseVStr ++ " = [TemV || <<TemV:64/big-float>> <= ListBin" ++ UseListBinStr ++ "],\n",
-                        ListBinStr ++ VStr;
-                     "string" ->
+                     <<"bool">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:8, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV =:= 1 || <<TemV:8/big-unsigned>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"int8">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:8, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV || <<TemV:8/big-signed>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"uint8">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:8, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV || <<TemV:8/big-unsigned>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"int16">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:16, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV || <<TemV:16/big-signed>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"uint16">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:16, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV || <<TemV:16/big-unsigned>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"int32">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:32, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV || <<TemV:32/big-signed>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"uint32">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:32, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV || <<TemV:32/big-unsigned>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"int64">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:64, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV || <<TemV:64/big-signed>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"uint64">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:64, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV || <<TemV:64/big-unsigned>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"integer">> ->
+                        <<"\t{V", UseVStr/binary, ", LeftBin", UseLeftBinStr3/binary, "} = deIntegerList(Len", UseLenStr/binary, ", LeftBin", GetLeftBinStr3/binary, ", []),\n">>;
+                     <<"number">> ->
+                        <<"\t{V", UseVStr/binary, ", LeftBin", UseLeftBinStr3/binary, "} = deNumberList(Len", UseLenStr/binary, ", LeftBin", GetLeftBinStr3/binary, ", []),\n">>;
+                     <<"float">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:32, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV || <<TemV:32/big-float>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"double">> ->
+                        ListBinStr = <<"\t<<ListBin", UseListBinStr/binary, ":Len", UseLenStr/binary, "/big-binary-unit:64, LeftBin", UseLeftBinStr3/binary, "/binary>> = LeftBin", GetLeftBinStr3/binary, ",\n">>,
+                        VStr = <<"\tV", UseVStr/binary, " = [TemV || <<TemV:64/big-float>> <= ListBin", UseListBinStr/binary, "],\n">>,
+                        <<ListBinStr/binary, VStr/binary>>;
+                     <<"string">> ->
                         case isCalcRefSize() of
                            true ->
-                              "\t{V" ++ UseVStr ++ ", LeftBin" ++ UseLeftBinStr3 ++ "} = deStringList(Len" ++ UseLenStr ++ ", LeftBin" ++ GetLeftBinStr3 ++ ", RefSize, []),\n";
+                              <<"\t{V", UseVStr/binary, ", LeftBin", UseLeftBinStr3/binary, "} = deStringList(Len", UseLenStr/binary, ", LeftBin", GetLeftBinStr3/binary, ", RefSize, []),\n">>;
                            _ ->
                               useIndexStr(pd_isCalcRefSize),
-                              RefSizeStr = "\tRefSize = binary:referenced_byte_size(LeftBin0),\n",
-                              VStr = "\t{V" ++ UseVStr ++ ", LeftBin" ++ UseLeftBinStr3 ++ "} = deStringList(Len" ++ UseLenStr ++ ", LeftBin" ++ GetLeftBinStr3 ++ ", RefSize, []),\n",
-                              RefSizeStr ++ VStr
+                              RefSizeStr = <<"\tRefSize = binary:referenced_byte_size(LeftBin0),\n">>,
+                              VStr = <<"\t{V", UseVStr/binary, ", LeftBin", UseLeftBinStr3/binary, "} = deStringList(Len", UseLenStr/binary, ", LeftBin", GetLeftBinStr3/binary, ", RefSize, []),\n">>,
+                              <<RefSizeStr/binary, VStr/binary>>
                         end;
                      ListRecord ->
                         case lists:keyfind(ListRecord, 1, SortedSProtoList) of
                            {ListRecord, ListMsgId, _} = RecordInfo ->
                               addSubRec(RecordInfo, IsForBin),
-                              "\t{V" ++ UseVStr ++ ", LeftBin" ++ UseLeftBinStr3 ++ "} = deRecordList(Len" ++ UseLenStr ++ ", " ++ integer_to_list(ListMsgId) ++ ", LeftBin" ++ GetLeftBinStr3 ++ ", []),\n";
+                              <<"\t{V", UseVStr/binary, ", LeftBin", UseLeftBinStr3/binary, "} = deRecordList(Len", UseLenStr/binary, ", ", (integer_to_binary(ListMsgId))/binary, ", LeftBin", GetLeftBinStr3/binary, ", []),\n">>;
                            _ ->
                               io:format("this an Record undefined :~p~n", [ListRecord]),
                               throw(record_undefined)
                         end
                   end,
-               {false, StrAcc ++ TemStr ++ LenStr ++ DeListStr};
+               {false, <<StrAcc/binary, TemStr/binary, LenStr/binary, DeListStr/binary>>};
             OtherRecord ->
                TemStr =
                   case IsSimple of
                      true ->
                         GetLeftBinStr1 = getIndexStr(pd_leftBin),
                         UseLeftBinStr1 = useIndexStr(pd_leftBin),
-                        "LeftBin" ++ UseLeftBinStr1 ++ "/binary>> = LeftBin" ++ GetLeftBinStr1 ++ ",\n";
+                        <<"LeftBin", UseLeftBinStr1/binary, "/binary>> = LeftBin", GetLeftBinStr1/binary, ",\n">>;
                      _ ->
-                        ""
+                        <<"">>
                   end,
                UseIsUndefStr = useIndexStr(pd_isUndef),
                GetLeftBinStr2 = getIndexStr(pd_leftBin),
                UseLeftBinStr2 = useIndexStr(pd_leftBin),
-               IsStr = "\t<<IsUndef" ++ UseIsUndefStr ++ ":8/big-unsigned, LeftBin" ++ UseLeftBinStr2 ++ "/binary>> = LeftBin" ++ GetLeftBinStr2 ++ ",\n",
+               IsStr = <<"\t<<IsUndef", UseIsUndefStr/binary, ":8/big-unsigned, LeftBin", UseLeftBinStr2/binary, "/binary>> = LeftBin", GetLeftBinStr2/binary, ",\n">>,
                UseVStr = useIndexStr(pd_v),
                UseLeftBinStr3 = useIndexStr(pd_leftBin),
                case lists:keyfind(OtherRecord, 1, SortedSProtoList) of
                   {OtherRecord, OtherMsgId, _} = RecordInfo ->
                      addSubRec(RecordInfo, IsForBin),
-                     VStr = "\tcase IsUndef" ++ UseIsUndefStr ++ " of\n\t\t0 ->\n\t\t\tV" ++ UseVStr ++ " = undefined,\n\t\t\tLeftBin" ++ UseLeftBinStr3 ++ " = LeftBin" ++ UseLeftBinStr2 ++
-                        " ;\n\t\t_ ->\n\t\t\t{V" ++ UseVStr ++ ", LeftBin" ++ UseLeftBinStr3 ++ "} = " ++ "decodeRec(" ++ integer_to_list(OtherMsgId) ++ ", LeftBin" ++ UseLeftBinStr2 ++ ")\n\tend,\n",
-                     {false, StrAcc ++ TemStr ++ IsStr ++ VStr};
+                     VStr = <<"\tcase IsUndef", UseIsUndefStr/binary, " of\n\t\t0 ->\n\t\t\tV", UseVStr/binary, " = undefined,\n\t\t\tLeftBin", UseLeftBinStr3/binary, " = LeftBin", UseLeftBinStr2/binary,
+                     " ;\n\t\t_ ->\n\t\t\t{V", UseVStr/binary, ", LeftBin", UseLeftBinStr3/binary, "} = ", "decodeRec(", (integer_to_binary(OtherMsgId))/binary, ", LeftBin", UseLeftBinStr2/binary, ")\n\tend,\n">>,
+                     {false, <<StrAcc/binary, TemStr/binary, IsStr/binary, VStr/binary>>};
                   _ ->
                      io:format("this an Record undefined :~p~n", [OtherRecord]),
                      throw(record_undefined)
@@ -598,13 +621,13 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
          end
       end,
 
-   {LIsSimple, BodyStr} = lists:foldl(FunBody, {false, ""}, FieldList),
+   {LIsSimple, BodyStr} = lists:foldl(FunBody, {false, <<"">>}, FieldList),
    LBodyStr =
       case LIsSimple of
          true ->
             LGetLeftBinStr = getIndexStr(pd_leftBin),
             LUseLeftBinStr = useIndexStr(pd_leftBin),
-            BodyStr ++ "LeftBin" ++ LUseLeftBinStr ++ "/binary>> = LeftBin" ++ LGetLeftBinStr ++ ",\n";
+            <<BodyStr/binary, "LeftBin", LUseLeftBinStr/binary, "/binary>> = LeftBin", LGetLeftBinStr/binary, ",\n">>;
          _ ->
             BodyStr
       end,
@@ -615,47 +638,45 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
             MsgIndex = MsgId div ?MsgIdSegSize,
             Handler = erlang:get(pd_handler),
             {MsgIndex, ModName} = lists:keyfind(MsgIndex, 1, Handler),
-            HandleName = erlang:binary_to_list(ModName) ++ "Her",
+            HandleName = <<ModName/binary, "Her">>,
             case FieldLen > 0 of
                true ->
                   FunRec =
                      fun(N, Acc) ->
-                        ", V" ++ integer_to_list(N) ++ Acc
-
+                        <<Acc/binary, ", V", (integer_to_binary(N))/binary>>
                      end,
-                  RecStr = lists:foldr(FunRec, "", lists:seq(1, FieldLen)),
-                  "\t{" ++ HandleName ++ ", " ++ MsgName ++ ", {" ++ MsgName ++ RecStr ++ "}};\n";
+                  RecStr = lists:foldl(FunRec, <<"">>, lists:seq(1, FieldLen)),
+                  <<"\t{", HandleName/binary, ", ", MsgName/binary, ", {", MsgName/binary, RecStr/binary, "}};\n">>;
                _ ->
-                  "\t{" ++ HandleName ++ ", " ++ MsgName ++ ", {" + MsgName ++ "}};\n"
+                  <<"\t{", HandleName/binary, ", ", MsgName/binary, ", {", MsgName/binary, "}};\n">>
             end;
          _ ->
             case FieldLen > 0 of
                true ->
                   FunRec =
                      fun(N, Acc) ->
-                        ", V" ++ integer_to_list(N) ++ Acc
-
+                        <<Acc/binary, ", V", (integer_to_binary(N))/binary>>
                      end,
-                  RecStr = lists:foldr(FunRec, "", lists:seq(1, FieldLen)),
-                  "\tMsgRec = {" ++ MsgName ++ RecStr ++ "},\n"
-                  "\t{MsgRec, LeftBin" ++ getIndexStr(pd_leftBin) ++ "};\n";
+                  RecStr = lists:foldl(FunRec, <<"">>, lists:seq(1, FieldLen)),
+                  <<"\tMsgRec = {", MsgName/binary, RecStr/binary, "},\n\t{MsgRec, LeftBin", (getIndexStr(pd_leftBin))/binary, "};\n">>;
                _ ->
-                  "\t{{" + MsgName ++ "}, " ++ "<<>>};\n"
+                  <<"\t{{", MsgName/binary, "}, ", "<<>>};\n">>
             end
       end,
-   HeadStr ++ LBodyStr ++ RetStr.
+   <<HeadStr/binary, LBodyStr/binary, RetStr/binary>>.
 
 genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir) ->
    initSubRec(),
    FunSpell =
-      fun({MsgName, _MsgId, FieldList} = MsgInfo, {MsgHrlAcc, _MsgIdAcc, MsgEncodeAcc, MsgDecodeAcc}) ->
+      fun({MsgName, MsgId, FieldList} = MsgInfo, {MsgHrlAcc, MsgEncodeAcc, MsgDecodeAcc, MsgIdAcc, MsgNameAcc}) ->
          %% gen hrl str
          Len = erlang:length(FieldList),
-         {_, Len, LastFieldStr} = lists:foldr(fun genMsgHrl/2, {Len, Len, ""}, FieldList),
-         HrlStr = "-record(" ++ MsgName ++ ", {\n\t" ++ LastFieldStr ++ "}).\n",
+         LastFieldStr = genMsgHrl(FieldList, Len, Len, <<"">>),
+         HrlStr = <<"-record(", MsgName/binary, ", {\n\t", LastFieldStr/binary, "}).\n">>,
+
          %% gen getMsgId  getMsgType str
-         %% TypeStr = "getMsgType(" ++ integer_to_list(MsgId) ++ ")-> " ++ MsgName ++ ";\n",
-         %% IdStr = "getMsgId(" ++ MsgName ++ ")-> " ++ integer_to_list(MsgId) ++ ";\n",
+         IdStr = <<"getMsgId(", MsgName/binary, ")-> ", (integer_to_binary(MsgId))/binary, ";\n">>,
+         NameStr = <<"getMsgName(", (integer_to_binary(MsgId))/binary, ")-> ", MsgName/binary, ";\n">>,
 
          %% gen encodeRec Str
          EncodeStr = genEncodeRec(MsgInfo, true),
@@ -664,30 +685,28 @@ genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir) ->
          resetPd(),
          DecodeStr = genDecodeBin(MsgInfo, SortedSProtoList, true),
 
-         {[HrlStr | MsgHrlAcc], ["Unuse"], [EncodeStr | MsgEncodeAcc], [DecodeStr | MsgDecodeAcc]}
+         {<<MsgHrlAcc/binary, HrlStr/binary>>,  <<MsgEncodeAcc/binary, EncodeStr/binary>>, <<MsgDecodeAcc/binary, DecodeStr/binary>>, <<MsgIdAcc/binary, IdStr/binary>>, <<MsgNameAcc/binary, NameStr/binary>>}
       end,
-   {MsgHrlStr, _MsgIdStr, MsgEncodeStr, MsgDecodeStr} = lists:foldl(FunSpell, {[], ["getMsgId(_) -> 0.\n\n"], ["encodeIol(_, _) ->\n\t[].\n\n"], ["decodeBin(_, _) ->\n\t{undefinedHer, undefined, {}}.\n\n"]}, SortedSProtoList),
+   {MsgHrlStr, TMsgEncodeStr, TMsgDecodeStr, _TMsgIdStr, _TMsgNameStr} = lists:foldl(FunSpell, {<<>>, <<>>, <<>>, <<>>, <<>>}, SortedSProtoList),
+   MsgEncodeStr = <<TMsgEncodeStr/binary, "encodeIol(_, _) ->\n\t[].\n\n">>,
+   MsgDecodeStr = <<TMsgDecodeStr/binary, "decodeBin(_, _) ->\n\t{undefinedHer, undefined, {}}.\n\n">>,
+   _MsgIdStr = <<_TMsgIdStr/binary, "getMsgId(_) -> 0.\n\n">>,
+   _MsgNameStr = <<_TMsgNameStr/binary, "getMsgName(_) -> undefiend.\n\n">>,
 
-   ErrCodeStr = lists:foldl(fun genErrCodeHrl/2, [], SortedErrList) ++ "\n\n",
+   ErrCodeStr = spellErrCodeHrl(SortedErrList, <<>>),
 
    %% gen decodeRec str
    SubRecList = getSubRec(),
-   SortedSubRecList = lists:sort(fun({_Name1, MessageId1, _FieldList1}, {_Name2, MessageId2, _FieldList2}) ->
-      MessageId1 > MessageId2 end, SubRecList),
-
-   FunSubRec =
-      fun(MsgInfo, {SubEncodeAcc, SubDecodeAcc}) ->
-         EncodeStr = genEncodeRec(MsgInfo, false),
-         resetPd(),
-         DecodeStr = genDecodeBin(MsgInfo, SortedSProtoList, false),
-         {[EncodeStr | SubEncodeAcc], [DecodeStr | SubDecodeAcc]}
-      end,
-   {MsgEncodeRecStr, MsgDecodeRecStr} = lists:foldl(FunSubRec, {["subEncode(_, _) ->\n\t[].\n\n"], ["decodeRec(_, _) ->\n\t{{}, <<>>}.\n\n"]}, SortedSubRecList),
+   initSubSubRec(),
+   SortedSubRecList = lists:sort(fun({_Name1, MessageId1, _FieldList1}, {_Name2, MessageId2, _FieldList2}) -> MessageId1 < MessageId2 end, SubRecList),
+   {MsgEncodeRecStr, MsgDecodeRecStr} = dealSubRec(SortedSubRecList, SortedSProtoList, <<"">>, <<"">>),
 
    ErlHeaderStr = protoErlHeader(),
-   OutputStr = ErlHeaderStr ++ MsgEncodeRecStr ++ MsgEncodeStr ++ MsgDecodeRecStr ++ MsgDecodeStr,
-   HrlFilename = do_write_hrl(HrlDir, protoMsg, protoHrlHeader() ++ ErrCodeStr ++ MsgHrlStr),
-   ErlFilename = do_write_erl(ErlDir, protoMsg, OutputStr),
+   HrlHeaderStr = protoHrlHeader(),
+   OutputErlStr = <<ErlHeaderStr/binary, MsgEncodeRecStr/binary, MsgEncodeStr/binary, MsgDecodeRecStr/binary, MsgDecodeStr/binary>>,
+   OutputHrlStr = <<HrlHeaderStr/binary, ErrCodeStr/binary, MsgHrlStr/binary>>,
+   HrlFilename = do_write_hrl(HrlDir, protoMsg, OutputHrlStr),
+   ErlFilename = do_write_erl(ErlDir, protoMsg, OutputErlStr),
 
    io:format("protoConvert hrl dir : ~s ~n", [HrlDir]),
    io:format("protoConvert erl dir : ~s ~n", [ErlDir]),
@@ -695,14 +714,29 @@ genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir) ->
    io:format("protoConvert to erl file ~s succ.~n", [ErlFilename]),
    ok.
 
-do_write_hrl(OutDir, Mod, Str) when is_list(OutDir) ->
+dealSubRec([], SortedSProtoList, SubEncodeAcc, SubDecodeAcc) ->
+   case getSubSubRec() of
+      [] ->
+         {<<SubEncodeAcc/binary, "subEncode(_, _) ->\n\t[].\n\n">>, <<SubDecodeAcc/binary, "decodeRec(_, _) ->\n\t{{}, <<>>}.\n\n">>};
+      NewAddList ->
+         initSubSubRec(),
+         SortedSubRecList = lists:sort(fun({_Name1, MessageId1, _FieldList1}, {_Name2, MessageId2, _FieldList2}) -> MessageId1 < MessageId2 end, NewAddList),
+         dealSubRec(SortedSubRecList, SortedSProtoList, SubEncodeAcc, SubDecodeAcc)
+   end;
+dealSubRec([MsgInfo | SubRecList], SortedSProtoList, SubEncodeAcc, SubDecodeAcc) ->
+   EncodeStr = genEncodeRec(MsgInfo, false),
+   resetPd(),
+   DecodeStr = genDecodeBin(MsgInfo, SortedSProtoList, false),
+   dealSubRec(SubRecList, SortedSProtoList, <<SubEncodeAcc/binary, EncodeStr/binary>>, <<SubDecodeAcc/binary, DecodeStr/binary>>).
+
+do_write_hrl(OutDir, Mod, BinStr) ->
    Filename = filename:join([OutDir, atom_to_list(Mod) ++ ".hrl"]),
-   ok = file:write_file(Filename, Str),
+   ok = file:write_file(Filename, BinStr),
    Filename.
 
-do_write_erl(OutDir, Mod, Str) when is_list(OutDir) ->
+do_write_erl(OutDir, Mod, BinStr ) ->
    Filename = filename:join([OutDir, atom_to_list(Mod) ++ ".erl"]),
-   case file:write_file(Filename, Str) of
+   case file:write_file(Filename, BinStr) of
       ok ->
          ok;
       _Ret ->

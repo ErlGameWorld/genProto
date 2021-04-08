@@ -70,9 +70,9 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
    ErrCodeList = erlang:get(pd_errlist),
 
    SortedSProtoList = lists:sort(fun({_Name1, MessageId1, _FieldList1}, {_Name2, MessageId2, _FieldList2}) ->
-      MessageId1 > MessageId2 end, SProtoList),
+      MessageId1 < MessageId2 end, SProtoList),
 
    SortedErrList = lists:sort(fun({_ErrName1, ErrCodeId1, _Desc1}, {_ErrName2, ErrCodeId2, _Desc2}) ->
-      ErrCodeId1 > ErrCodeId2 end, ErrCodeList),
+      ErrCodeId1 < ErrCodeId2 end, ErrCodeList),
    gErlGen:genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir).
 %% 如果有其他语言请在这里添加入口函数

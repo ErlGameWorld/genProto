@@ -239,3 +239,6 @@ allType{
     list[string] lstring;
     list[union] lunion;
 }
+
+testnull {
+}

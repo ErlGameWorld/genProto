@@ -240,6 +240,8 @@ encodeIol(tlistunion, {_, V1}) ->
 	[<<34:16/big-unsigned>>, ?list_record(V1)];
 encodeIol(allType, {_, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40, V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53, V54, V55}) ->
 	[<<35:16/big-unsigned>>, ?bool(V1), ?int8(V2), ?uint8(V3), ?int16(V4), ?uint16(V5), ?int32(V6), ?uint32(V7), ?int64(V8), ?uint64(V9), ?integer(V10), ?integer(V11), ?integer(V12), ?integer(V13), ?integer(V14), ?integer(V15), ?integer(V16), ?integer(V17), ?number(V18), ?number(V19), ?number(V20), ?number(V21), ?number(V22), ?number(V23), ?number(V24), ?number(V25), ?number(V26), ?number(V27), ?float(V28), ?double(V29), ?string(V30), ?string(V31), ?record(V32), ?list_bool(V33), ?list_int8(V34), ?list_uint8(V35), ?list_int16(V36), ?list_uint16(V37), ?list_int32(V38), ?list_uint32(V39), ?list_int64(V40), ?list_uint64(V41), ?list_integer(V42), ?list_integer(V43), ?list_integer(V44), ?list_integer(V45), ?list_number(V46), ?list_number(V47), ?list_number(V48), ?list_number(V49), ?list_number(V50), ?list_number(V51), ?list_float(V52), ?list_double(V53), ?list_string(V54), ?list_record(V55)];
+encodeIol(testnull, {_}) ->
+	[<<36:16/big-unsigned>>];
 encodeIol(person1, {_, V1, V2, V3, V4}) ->
 	[<<1001:16/big-unsigned>>, ?string(V1), ?int32(V2), ?string(V3), ?list_record(V4)];
 encodeIol(_, _) ->
@@ -816,6 +818,8 @@ decodeBin(35, LeftBin0) ->
 	<<Len25:16/big-unsigned, LeftBin72/binary>> = LeftBin71,
 	{V55, LeftBin73} = deRecordList(Len25, 5, LeftBin72, []),
 	{testHer, allType, {allType, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21, V22, V23, V24, V25, V26, V27, V28, V29, V30, V31, V32, V33, V34, V35, V36, V37, V38, V39, V40, V41, V42, V43, V44, V45, V46, V47, V48, V49, V50, V51, V52, V53, V54, V55}};
+decodeBin(36, LeftBin0) ->
+	{testHer, testnull, {testnull}};
 decodeBin(1001, LeftBin0) ->
 	RefSize = binary:referenced_byte_size(LeftBin0),
 	<<Len1:16/big-unsigned, TemStrV1:Len1/binary, LeftBin1/binary>> = LeftBin0,
