@@ -16,6 +16,8 @@
 -define(ERR7, 6).		%% def
 -define(ERR8, 7).		%% 其他注释辅导费
 -define(ERR6, 1001).		%% dfff
+
+
 -record(test, {
 	aa = "" :: string()
 }).

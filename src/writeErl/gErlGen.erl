@@ -704,7 +704,7 @@ genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir) ->
    ErlHeaderStr = protoErlHeader(),
    HrlHeaderStr = protoHrlHeader(),
    OutputErlStr = <<ErlHeaderStr/binary, MsgEncodeRecStr/binary, MsgEncodeStr/binary, MsgDecodeRecStr/binary, MsgDecodeStr/binary>>,
-   OutputHrlStr = <<HrlHeaderStr/binary, ErrCodeStr/binary, MsgHrlStr/binary>>,
+   OutputHrlStr = <<HrlHeaderStr/binary, ErrCodeStr/binary, "\n\n", MsgHrlStr/binary>>,
    HrlFilename = do_write_hrl(HrlDir, protoMsg, OutputHrlStr),
    ErlFilename = do_write_erl(ErlDir, protoMsg, OutputErlStr),
 
