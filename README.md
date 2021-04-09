@@ -6,7 +6,11 @@ An OTP library
 Build
 -----
 
-    $ rebar3 compile
+    $ rebar3 escriptize
+
+Use
+-----
+    genProto ProtoInputDir HrlOutDir ErlOutDir
 
 # 简单描述
 

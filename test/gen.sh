@@ -1,0 +1,1 @@
+protoGen ../proto ./ ./

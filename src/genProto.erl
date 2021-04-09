@@ -2,6 +2,8 @@
 
 -include("genDef.hrl").
 
+-export([main/1]).
+
 -export([
    convertFile/1
    , convert/1
@@ -9,6 +11,10 @@
    , convertDir/1
    , convertDir/3
 ]).
+
+main(Args) ->
+   [ProtoDir, HrlDir, ErlDir] = Args,
+   convertDir(ProtoDir, HrlDir, ErlDir).
 
 convertFile(File) ->
    erlang:erase(),
