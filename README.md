@@ -1,148 +1,55 @@
 genProto
 =====
-
-An OTP library
+    用于根据自定义的协议文件生成 erl, c#, lua的序列化和反序列化代码
 
 Build
 -----
-
-    $ rebar3 escriptize
+    rebar3 escriptize  
 
 Use
 -----
+    rebar3 escriptize生成的genProto genPtoto.cmd 在_build/default/bin下面 将其复制到可以被搜索的执行路径或者工作目录
     genProto ProtoInputDir HrlOutDir ErlOutDir
 
 # 简单描述
-
     可用于erlang游戏或者erlang其他网络应用的协议解析编码解码的项目,具有较高的编码解码性能，
-    已经尽量优化了编码解码的代码使其编码解码速度更快
-    协议文件存放在proto目录 文件名为 Message protocol definition file的缩写 mpdf
-    源码目录为src，test目录主要用于生成协议和测试的脚本以及用于测试的代码。
+    协议文件存放在proto目录 文件名为 Message protocol definition file的缩写 mpdf。
 
-## 二进制语法
+# 支持的数据类型
+    erl: int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer(整数 64位) number(整数或者浮点数 64位) string float(32位浮点数) double(64位浮点数) bool record(struct) 以及上面类型的列表
+    lua(待修正): int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer(整数 64位) number(整数或者浮点数 64位) string float(32位浮点数) double(64位浮点数) bool record 以及上面类型的列表
+    c#(待修正): int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer(整数 64位) number(整数或者浮点数 64位) string float(32位浮点数) double(64位浮点数) bool record 以及上面类型的列表
 
-	Bin = <<E1, E2, ... En>>
-	<<E1, E2, ... En>> = Bin
-	每个E 1..n 指定bitstring的Segment
-	每个段具有以下一般语法：
-	Value:Size/TypeSpecifierList
-	可以省略Size或TypeSpecifier或两者。因此，允许以下变体：
-	Ei =
-		Value |
-		Value:Size |
-		Value/TypeSpecifierList |
-		Value:Size/TypeSpecifierList
+# 各种数据类型的编码格式(字节序大端存储， string用utf8编码)
+    int8：               直接存8bit的值       
+    uint8：              直接存8bit的值  
+    int16：              直接存16bit的值
+    uint16：             直接存16bit的值
+    int32：              直接存32bit的值
+    uint32：             直接存32bit的值
+    int64：              直接存64bit的值
+    uint64：             直接存64bit的值
+    integer：            如果值在int8范围区间: 8bit的Tag 值为8 + 8bit的值; 如果值在int16范围区间: 8bit的Tag 值为16 + 16bit的值; 如果值在int32范围区间: 8bit的Tag 值为32 + 32bit的值; 如果值在int64范围区间: 8bit的Tag 值为64 + 64bit的值;
+    number：             如果值是整数则：编码规则同 integer类型; 如果是浮点数: 如果值在float32范围区间  8bit的Tag 值为33 + 32bit的值; 如果值在float64范围区间  8bit的Tag 值为65 + 64bit的值;    
+    string：             16bit的Tag 存放的字符串长度(长度不包含字符串结尾符) + 字符串的内容(内容不包含结字符串尾符号)         
+    float:               直接存放32bit的值
+    double：             直接存放64bit的值
+    bool：               占位8bit 如果为true 则存放的值为1 否则存放的值为0
+    record(struct)：     如果是undefined 或者是空指针 则 8bit Tag 值为0, 否则 bbit的tat 值为1 + record的二进制数据
+    list_+上面的数据类型的时候： 16bit的tag 用于存放 数组的长度 + 按数组顺序序列化每个元素的值的二进制数据
 
-### Value
-
-	当在二进制构造中使用时，Value部分是任何表达式，用于求值为整数，浮点或位串，如果表达式不是单个文字或变量，则将其括在括号中。
-	在二进制匹配中使用时，用于位串匹配，Value必须是变量，或整数，浮点或字符串，简单而言就是Value部分必须是文字或变量。
-
-### Size
-
-	在位串构造中使用，Size是要求求整数的表达式。
-	用于位串匹配，Size必须是整数，或绑定到整数的变量。
-	Size的值以Unit指定段的大小，默认值取决于类型
-		• For integer it is 8.
-		• For float it is 64.
-		• For binary and bitstring it is the whole binary or bit string.
-		在匹配中，此默认值仅对最后一个元素有效。匹配中的所有其他位串或二进制元素必须具有大小规范,段的大小Size部分乘以TypeSpecifierList中的unit(稍后描述)给出了段的位数.对于utf8，utf16和utf32类型，不得给出Size的大小。段的大小由类型和值本身隐式确定。
-
-### TypeSpecifierList
-
-	是一个类型说明符列表，按任何顺序，用连字符("-")分隔。默认值用于任何省略的类型说明符
-
-#### Type
-
-	Type= integer | float | binary | bytes | bitstring | bits | utf8 | utf16 | utf32	
-	默认值为integer。bytes是二进制的简写，bits是bitstring的简写。有关utf类型的更多信息，请参见下文。
-
-#### Signedness
-
-	Signedness= signed | unsigned
-	只有匹配和类型为整数时才有意义。默认值为无符号。
-
-#### Endianness
-
-	Endianness= big | little | native
-	Native-endian意味着字节顺序在加载时被解析为big-endian或little-endian，具体取决于运行Erlang机器的CPU的本机内容。仅当Type为integer，utf16，utf32或float时，字节顺序才有意义。默认值为big。
-
-#### Unit
-
-	Unit= unit:IntegerLiteral
-	允许的范围是1..256。对于integer，float和bitstring，默认值为1;对于binary，默认值为8。对于utf8，utf16和utf32类型，不能给出Unit说明符。
-	它与Size说明符相乘，以给出段的有效大小。单位大小指定没有大小的二进制段的对齐方式，二进制类型的段必须具有可被8整除的大小
-
-### 注意
-
-	构造二进制文件时，如果整数段的大小N太小而不能包含给定的整数，则整数的最高有效位将被静默丢弃，并且只有N个最低有效位被放入二进制。	
-
-#### 例子：
-
-	X:4/little-signed-integer-unit:8
-	该元素的总大小为4 * 8 = 32位，它包含一个小端序的有符号整数
-
-### 关于 utf8 utf16 utf32
-
-	构造utf类型的段时，Value必须是0..16＃D7FF或16＃E000 .... 16＃10FFFF范围内的整数。如果Value超出允许范围，则构造将失败并返回badarg异常。生成的二进制段的大小取决于类型或值，或两者：
-	• For utf8, Value is encoded in 1-4 bytes.
-	• For utf16, Value is encoded in 2 or 4 bytes.
-	• For utf32, Value is always be encoded in 4 bytes.	
-	构造时，可以给出一个文字字符串，后跟一个UTF类型，例如：<<“abc”/ utf8 >>，这是<< $ a / utf8，$ b / utf8，$ c / utf8的语法糖>>。
-	成功匹配utf类型的段，得到0..16＃D7FF或16＃E000..16＃10FFFF范围内的整数。
-    如果返回值超出这些范围，则匹配失败。
-
-### 如何实现二进制文件
-
-	在内部，二进制和位串以相同的方式实现。
-	内部有四种类型的二进制对象：
-	两个是二进制数据的容器，称为：
-		• Refc binaries (short for reference-counted binaries)
-		• Heap binaries
-	两个仅仅是对二进制文件的一部分的引用，被称为：
-		• sub binaries 
-		• match contexts
-
-### Refc Binaries
-
-	Refc二进制文件由两部分组成：
-	•存储在进程堆上的对象，称为ProcBin
-	•二进制对象本身，存储在所有进程堆之外	
-	任何数量的进程都可以通过任意数量的ProcBins引用二进制对象。该对象包含一个引用计数器，用于跟踪引用的数量，以便在最后一个引用消失时将其删除。
-	进程中的所有ProcBin对象都是链表的一部分，因此当ProcBin消失时，垃圾收集器可以跟踪它们并减少二进制文件中的引用计数器。
-
-### Heap Binaries
-
-	堆二进制文件是小型二进制文件，最多64个字节，并直接存储在进程堆上。它们在进程被垃圾收集时以及作为消息发送时被复制。它们不需要垃圾收集器进行任何特殊处理。
-
-### Sub Binaries
-
-	The reference objects sub binaries and match contexts can reference part of a refc binary or heap binary
-	子二进制文件由split_binary / 2创建或者当二进制文件以二进制模式匹配时。子二进制是对另一个二进制文件（refc或堆二进制文件的一部分，但从不进入另一个子二进制文件）的引用。因此，匹配二进制文件相对便宜，因为实际的二进制数据永远不会被复制。
-
-### Match Context
-
-	匹配上下文类似于子二进制，但针对二进制匹配进行了优化
-
-### 关于iolist
-
-    定义(直接引用霸业的文章)
-    1. [] 
-    2. binary
-    3. 列表, 每个元素是int(0-255)或者binary或者iolist.
-    其中binary是指 bitsize % 8 == 0 .
-    int 是0-255 
-    Iolist的作用是用于往port送数据的时候.由于底层的系统调用如writev支持向量写, 就避免了无谓的iolist_to_binary这样的扁平话操作, 避免了内存拷贝,极大的提高了效率.
-    另外额外补充：
-    erlang中列表时在头部添加比较高效，但是binary是在尾部追加更高效
+### maybe TODO
+    生成的protoMsg.erl
+    encode 函数参数列表太长时 换行显示
+    encode返回的编码列表参数太多时 换行显示
+    decodeBin simple类型解码列表过长时 换行显示
+    decodeBin 返回元组元素太多时 换行显示
 
 ### 关于消息接收转发解码和发送
-
 	erlang通常会将接收到的消息由网关进程转发给其他工作进程， 建议先匹配消息id, 然后转发二进制消息到工作进程，然后由工作进程解码再处理
 	同时广播消息可先编码成二进制之后再广播， 避免重复编码
 
-### 简单性能测评
-
+### erl部分简单性能测评
 	主要和gpb做简单对比测试
     gpb测试相关文件在test/gpb目录下
     测试协议：
@@ -307,14 +214,6 @@ Use
               49,50,51,52,53,54,55,...>>
             67> byte_size(BAddr). 
             83
-
-### TODO
-
-    生成的protoMsg.erl
-    encode 函数参数列表太长时 换行显示
-    encode返回的编码列表参数太多时 换行显示
-    decodeBin simple类型解码列表过长时 换行显示
-    decodeBin 返回元组元素太多时 换行显示
 
     
 
