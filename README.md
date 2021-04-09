@@ -35,7 +35,7 @@ Use
     float:               直接存放32bit的值
     double：             直接存放64bit的值
     bool：               占位8bit 如果为true 则存放的值为1 否则存放的值为0
-    record(struct)：     如果是undefined 或者是空指针 则 8bit Tag 值为0, 否则 bbit的tat 值为1 + record的二进制数据
+    record(struct)：     如果是undefined 或者是空指针 则 8bit Tag 值为0, 否则 8bit的tag 值为1 + record的二进制数据
     list_+上面的数据类型的时候： 16bit的tag 用于存放 数组的长度 + 按数组顺序序列化每个元素的值的二进制数据
 
 ### maybe TODO
