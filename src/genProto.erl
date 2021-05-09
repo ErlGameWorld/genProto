@@ -90,5 +90,6 @@ convertDir(ProtoDir, HrlDir, ErlDir) ->
 
    SortedErrList = lists:sort(fun({_ErrName1, ErrCodeId1, _Desc1}, {_ErrName2, ErrCodeId2, _Desc2}) ->
       ErrCodeId1 < ErrCodeId2 end, ErrCodeList),
-   gErlGen:genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir).
+   gErlGen:genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir),
+   gCsGen:genCs(SortedSProtoList, SortedErrList, HrlDir, ErlDir).
 %% 如果有其他语言请在这里添加入口函数
