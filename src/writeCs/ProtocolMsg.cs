@@ -1,14 +1,28 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 
 namespace GenProto
 {
-    public static class Protocol
+    public static class ProtocolCore
     {
+        public interface ISerialize
+        {
+            void Serialize(BinaryWriter binaryWriter);
+            byte[] Serialize();
+        }
+
+        public interface IDeserialize<T>
+        {
+            void Deserialize(BinaryReader binaryReader);
+            void Deserialize(byte[] data);
+        }
+
         public enum BasicTypeEnum
         {
+            Custom = 0x00,
             Boolean = 0x01,
             Int8 = 0x02,
             UInt8 = 0x03,
@@ -39,7 +53,7 @@ namespace GenProto
                 float => BasicTypeEnum.Float,
                 double => BasicTypeEnum.Double,
                 string => BasicTypeEnum.String,
-                _ => throw new InvalidOperationException($"unexpect type: {value.GetType().FullName}")
+                _ => BasicTypeEnum.Custom,
             };
         }
 
@@ -84,12 +98,32 @@ namespace GenProto
                     binaryWriter.Write(stringValue);
                     break;
                 default:
-                    throw new InvalidOperationException($"unexpect type: {value.GetType().FullName}");
+                {
+                    binaryWriter.Write(value != null);
+                    switch (value)
+                    {
+                        case IList listValue:
+                            binaryWriter.WriteList(listValue);
+                            break;
+                        case ISerialize serialize:
+                            serialize.Serialize(binaryWriter);
+                            break;
+                        default:
+                            if (value != null)
+                            {
+                                throw new InvalidOperationException($"unexpect type: {value.GetType().FullName}");
+                            }
+
+                            break;
+                    }
+
+                    break;
+                }
             }
         }
 
 
-        public static void WriteList<T>(this BinaryWriter binaryWriter, IList<T> list)
+        public static void WriteList(this BinaryWriter binaryWriter, IList list)
         {
             var length = (ushort) (list?.Count ?? 0);
             binaryWriter.Write(length);
@@ -109,18 +143,102 @@ namespace GenProto
             }
         }
 
-        public static void ReadList(this BinaryReader binaryReader, out IList list)
+        public static void ReadValue(this BinaryReader binaryReader, out bool value)
         {
-            var length = binaryReader.ReadUInt16();
-            if (length <= 0)
+            value = binaryReader.ReadBoolean();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out sbyte value)
+        {
+            value = binaryReader.ReadSByte();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out byte value)
+        {
+            value = binaryReader.ReadByte();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out ushort value)
+        {
+            value = binaryReader.ReadUInt16();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out short value)
+        {
+            value = binaryReader.ReadInt16();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out int value)
+        {
+            value = binaryReader.ReadInt32();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out uint value)
+        {
+            value = binaryReader.ReadUInt32();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out long value)
+        {
+            value = binaryReader.ReadInt64();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out ulong value)
+        {
+            value = binaryReader.ReadUInt64();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out float value)
+        {
+            value = binaryReader.ReadSingle();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out double value)
+        {
+            value = binaryReader.ReadDouble();
+        }
+
+        public static void ReadValue(this BinaryReader binaryReader, out string value)
+        {
+            value = binaryReader.ReadString();
+        }
+
+        public static void ReadValue<T>(this BinaryReader binaryReader, out T value) where T : new()
+        {
+            value = default;
+            var haveValue = binaryReader.ReadBoolean();
+            if (!haveValue)
             {
-                list = default;
                 return;
             }
 
-            list = default;
+            value = new T();
+            if (!(value is IDeserialize<T> deserialize))
+            {
+                throw new InvalidOperationException($"error type: {typeof(T).FullName}");
+            }
+
+            deserialize.Deserialize(binaryReader);
+        }
+
+        public static void ReadValue<T>(this BinaryReader binaryReader, out List<T> outList) where T : new()
+        {
+            outList = default;
+            IList list = default;
+            var haveValue = binaryReader.ReadBoolean();
+            if (!haveValue)
+            {
+                return;
+            }
+
+            var length = binaryReader.ReadUInt16();
+            if (length <= 0)
+            {
+                return;
+            }
+
             var basicTypeEnum = (BasicTypeEnum) binaryReader.ReadByte();
-            for (int idx = 0; idx < length; idx++)
+            for (var idx = 0; idx < length; idx++)
             {
                 switch (basicTypeEnum)
                 {
@@ -184,14 +302,31 @@ namespace GenProto
                         var stringValue = binaryReader.ReadString();
                         list.Add(stringValue);
                         break;
+                    case BasicTypeEnum.Custom:
+                        list ??= new List<T>(length);
+                        var state = binaryReader.ReadBoolean();
+                        if (state)
+                        {
+                            if (new T() is IDeserialize<T> item)
+                            {
+                                item.Deserialize(binaryReader);
+                                list.Add(item);
+                            }
+                        }
+
+                        break;
+
+
                     default:
-                        throw new ArgumentOutOfRangeException();
+                        throw new InvalidOperationException();
                 }
             }
+
+            outList = list as List<T>;
         }
     }
 
-    public class AllType
+    public class AllType : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<AllType>
     {
         public bool Bool;
         public sbyte Int8;
@@ -205,7 +340,8 @@ namespace GenProto
         public float Float;
         public double Double;
         public string String;
-
+        public SubType SubType;
+        public List<SubType> ListSubType;
         public List<bool> ListBool;
         public List<sbyte> ListInt8;
         public List<byte> ListUInt8;
@@ -219,83 +355,243 @@ namespace GenProto
         public List<double> ListDouble;
         public List<string> ListString;
 
-        public static byte[] Serialize(AllType allType)
+        public byte[] Serialize()
         {
             using var memoryStream = new MemoryStream();
             using var binaryWriter = new BinaryWriter(memoryStream);
-            binaryWriter.Write(allType.Bool);
-            binaryWriter.Write(allType.Int8);
-            binaryWriter.Write(allType.UInt8);
-            binaryWriter.Write(allType.UInt16);
-            binaryWriter.Write(allType.Int16);
-            binaryWriter.Write(allType.Int32);
-            binaryWriter.Write(allType.UInt32);
-            binaryWriter.Write(allType.Int64);
-            binaryWriter.Write(allType.UInt64);
-            binaryWriter.Write(allType.Float);
-            binaryWriter.Write(allType.Double);
-            binaryWriter.Write(allType.String);
-
-            binaryWriter.WriteList(allType.ListBool);
-            binaryWriter.WriteList(allType.ListInt8);
-            binaryWriter.WriteList(allType.ListUInt8);
-            binaryWriter.WriteList(allType.ListUInt16);
-            binaryWriter.WriteList(allType.ListInt16);
-            binaryWriter.WriteList(allType.ListInt32);
-            binaryWriter.WriteList(allType.ListUInt32);
-            binaryWriter.WriteList(allType.ListInt64);
-            binaryWriter.WriteList(allType.ListUInt64);
-            binaryWriter.WriteList(allType.ListFloat);
-            binaryWriter.WriteList(allType.ListDouble);
-            binaryWriter.WriteList(allType.ListString);
-
+            Serialize(binaryWriter);
             return memoryStream.ToArray();
         }
 
-        public static AllType Deserialize(byte[] data)
+        public void Deserialize(byte[] data)
         {
             using var memoryStream = new MemoryStream(data);
             using var binaryReader = new BinaryReader(memoryStream);
-            var allType = new AllType();
-            allType.Bool = binaryReader.ReadBoolean();
-            allType.Int8 = binaryReader.ReadSByte();
-            allType.UInt8 = binaryReader.ReadByte();
-            allType.UInt16 = binaryReader.ReadUInt16();
-            allType.Int16 = binaryReader.ReadInt16();
-            allType.Int32 = binaryReader.ReadInt32();
-            allType.UInt32 = binaryReader.ReadUInt32();
-            allType.Int64 = binaryReader.ReadInt64();
-            allType.UInt64 = binaryReader.ReadUInt64();
-            allType.Float = binaryReader.ReadSingle();
-            allType.Double = binaryReader.ReadDouble();
-            allType.String = binaryReader.ReadString();
+            Deserialize(binaryReader);
+        }
 
-            binaryReader.ReadList(out var outListBool);
-            allType.ListBool = outListBool as List<bool>;
-            binaryReader.ReadList(out var outListInt8);
-            allType.ListInt8 = outListInt8 as List<sbyte>;
-            binaryReader.ReadList(out var outListUInt8);
-            allType.ListUInt8 = outListUInt8 as List<byte>;
-            binaryReader.ReadList(out var outListUInt16);
-            allType.ListUInt16 = outListUInt16 as List<ushort>;
-            binaryReader.ReadList(out var outListInt16);
-            allType.ListInt16 = outListInt16 as List<short>;
-            binaryReader.ReadList(out var outListInt32);
-            allType.ListInt32 = outListInt32 as List<int>;
-            binaryReader.ReadList(out var outListUInt32);
-            allType.ListUInt32 = outListUInt32 as List<uint>;
-            binaryReader.ReadList(out var outListInt64);
-            allType.ListInt64 = outListInt64 as List<long>;
-            binaryReader.ReadList(out var outListUInt64);
-            allType.ListUInt64 = outListUInt64 as List<ulong>;
-            binaryReader.ReadList(out var outListFloat);
-            allType.ListFloat = outListFloat as List<float>;
-            binaryReader.ReadList(out var outListDouble);
-            allType.ListDouble = outListDouble as List<double>;
-            binaryReader.ReadList(out var outListString);
-            allType.ListString = outListString as List<string>;
+        public void Serialize(BinaryWriter binaryWriter)
+        {
+            binaryWriter.WriteValue(Bool);
+            binaryWriter.WriteValue(Int8);
+            binaryWriter.WriteValue(UInt8);
+            binaryWriter.WriteValue(UInt16);
+            binaryWriter.WriteValue(Int16);
+            binaryWriter.WriteValue(Int32);
+            binaryWriter.WriteValue(UInt32);
+            binaryWriter.WriteValue(Int64);
+            binaryWriter.WriteValue(UInt64);
+            binaryWriter.WriteValue(Float);
+            binaryWriter.WriteValue(Double);
+            binaryWriter.WriteValue(String);
+            binaryWriter.WriteValue(SubType);
+            binaryWriter.WriteValue(ListSubType);
+            binaryWriter.WriteValue(ListBool);
+            binaryWriter.WriteValue(ListInt8);
+            binaryWriter.WriteValue(ListUInt8);
+            binaryWriter.WriteValue(ListUInt16);
+            binaryWriter.WriteValue(ListInt16);
+            binaryWriter.WriteValue(ListInt32);
+            binaryWriter.WriteValue(ListUInt32);
+            binaryWriter.WriteValue(ListInt64);
+            binaryWriter.WriteValue(ListUInt64);
+            binaryWriter.WriteValue(ListFloat);
+            binaryWriter.WriteValue(ListDouble);
+            binaryWriter.WriteValue(ListString);
+        }
 
-            return allType;
+
+        public void Deserialize(BinaryReader binaryReader)
+        {
+            binaryReader.ReadValue(out Bool);
+            binaryReader.ReadValue(out Int8);
+            binaryReader.ReadValue(out UInt8);
+            binaryReader.ReadValue(out UInt16);
+            binaryReader.ReadValue(out Int16);
+            binaryReader.ReadValue(out Int32);
+            binaryReader.ReadValue(out UInt32);
+            binaryReader.ReadValue(out Int64);
+            binaryReader.ReadValue(out UInt64);
+            binaryReader.ReadValue(out Float);
+            binaryReader.ReadValue(out Double);
+            binaryReader.ReadValue(out String);
+            binaryReader.ReadValue(out SubType);
+            binaryReader.ReadValue(out ListSubType);
+            binaryReader.ReadValue(out ListBool);
+            binaryReader.ReadValue(out ListInt8);
+            binaryReader.ReadValue(out ListUInt8);
+            binaryReader.ReadValue(out ListUInt16);
+            binaryReader.ReadValue(out ListInt16);
+            binaryReader.ReadValue(out ListInt32);
+            binaryReader.ReadValue(out ListUInt32);
+            binaryReader.ReadValue(out ListInt64);
+            binaryReader.ReadValue(out ListUInt64);
+            binaryReader.ReadValue(out ListFloat);
+            binaryReader.ReadValue(out ListDouble);
+            binaryReader.ReadValue(out ListString);
+        }
+    }
+
+    public class SubType : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<SubType>
+    {
+        public int Int32;
+
+        public byte[] Serialize()
+        {
+            using var memoryStream = new MemoryStream();
+            using var binaryWriter = new BinaryWriter(memoryStream);
+            Serialize(binaryWriter);
+            return memoryStream.ToArray();
+        }
+
+        public void Deserialize(byte[] data)
+        {
+            using var memoryStream = new MemoryStream(data);
+            using var binaryReader = new BinaryReader(memoryStream);
+            Deserialize(binaryReader);
+        }
+
+        public void Serialize(BinaryWriter binaryWriter)
+        {
+            binaryWriter.WriteValue(Int32);
+        }
+
+        public void Deserialize(BinaryReader binaryReader)
+        {
+            binaryReader.ReadValue(out Int32);
+        }
+    }
+
+    public class Test : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<SubType>
+    {
+        public string aa;
+        public void Serialize(BinaryWriter binaryWriter)
+        {
+            binaryWriter.WriteValue(aa);
+        }
+
+        public byte[] Serialize()
+        {
+            using var memoryStream = new MemoryStream();
+            using var binaryWriter = new BinaryWriter(memoryStream);
+            Serialize(binaryWriter);
+            return memoryStream.ToArray();
+        }
+
+        public void Deserialize(BinaryReader binaryReader)
+        {
+            binaryReader.ReadValue(out aa);
+        }
+
+        public void Deserialize(byte[] data)
+        {
+            using var memoryStream = new MemoryStream(data);
+            using var binaryReader = new BinaryReader(memoryStream);
+            Deserialize(binaryReader);
+        }
+    }
+
+    public class PhoneNumber : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<SubType>
+    {
+        public Test number;
+        public int type;
+        public void Serialize(BinaryWriter binaryWriter)
+        {
+            binaryWriter.WriteValue(number);
+            binaryWriter.WriteValue(type);
+        }
+
+        public byte[] Serialize()
+        {
+            using var memoryStream = new MemoryStream();
+            using var binaryWriter = new BinaryWriter(memoryStream);
+            Serialize(binaryWriter);
+            return memoryStream.ToArray();
+        }
+
+        public void Deserialize(BinaryReader binaryReader)
+        {
+            binaryReader.ReadValue(out number);
+            binaryReader.ReadValue(out type);
+        }
+
+        public void Deserialize(byte[] data)
+        {
+            using var memoryStream = new MemoryStream(data);
+            using var binaryReader = new BinaryReader(memoryStream);
+            Deserialize(binaryReader);
+        }
+    }
+    
+    public class Person : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<SubType>
+    {
+        public string Name;
+        public int id;
+        public string email;
+        public List<PhoneNumber> phone;
+        
+        
+        public void Serialize(BinaryWriter binaryWriter)
+        {
+            binaryWriter.WriteValue(Name);
+            binaryWriter.WriteValue(id);
+            binaryWriter.WriteValue(email);
+            binaryWriter.WriteValue(phone);
+        }
+
+        public byte[] Serialize()
+        {
+            using var memoryStream = new MemoryStream();
+            using var binaryWriter = new BinaryWriter(memoryStream);
+            Serialize(binaryWriter);
+            return memoryStream.ToArray();
+        }
+
+        public void Deserialize(BinaryReader binaryReader)
+        {
+            binaryReader.ReadValue(out Name);
+            binaryReader.ReadValue(out id);
+            binaryReader.ReadValue(out email);
+            binaryReader.ReadValue(out phone);
+        }
+
+        public void Deserialize(byte[] data)
+        {
+            using var memoryStream = new MemoryStream(data);
+            using var binaryReader = new BinaryReader(memoryStream);
+            Deserialize(binaryReader);
+        }
+    }
+
+    public class AddressBook : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<SubType>
+    {
+        public List<Person> person;
+        public List<Person> other;
+        public void Serialize(BinaryWriter binaryWriter)
+        {
+            binaryWriter.WriteValue(person);
+            binaryWriter.WriteValue(other);
+        }
+
+        public byte[] Serialize()
+        {
+            using var memoryStream = new MemoryStream();
+            using var binaryWriter = new BinaryWriter(memoryStream);
+            Serialize(binaryWriter);
+            return memoryStream.ToArray();
+        }
+
+        public void Deserialize(BinaryReader binaryReader)
+        {
+            binaryReader.ReadValue(out person);
+            binaryReader.ReadValue(out other);
+        }
+
+        public void Deserialize(byte[] data)
+        {
+            using var memoryStream = new MemoryStream(data);
+            using var binaryReader = new BinaryReader(memoryStream);
+            Deserialize(binaryReader);
         }
     }
 }
