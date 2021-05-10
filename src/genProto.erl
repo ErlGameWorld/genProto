@@ -2,6 +2,10 @@
 
 -include("genDef.hrl").
 
+-define(DefProtoDir, "./").
+-define(DefErlDir, "./").
+-define(DefHrlDir, "./").
+
 -export([main/1]).
 
 -export([
@@ -13,8 +17,14 @@
 ]).
 
 main(Args) ->
-   [ProtoDir, HrlDir, ErlDir] = Args,
-   convertDir(ProtoDir, HrlDir, ErlDir).
+   case Args of
+      [] ->
+         convertDir(?DefProtoDir, ?DefErlDir, ?DefHrlDir);
+      _ ->
+         [ProtoDir, HrlDir, ErlDir] = Args,
+         convertDir(ProtoDir, HrlDir, ErlDir)
+   end.
+
 
 convertFile(File) ->
    erlang:erase(),
