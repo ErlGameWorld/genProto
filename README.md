@@ -1,26 +1,32 @@
 genProto
 =====
+
     用于根据自定义的协议文件生成 erl, c#, lua的序列化和反序列化代码
 
 Build
 -----
+
     rebar3 escriptize  
 
 Use
 -----
+
     rebar3 escriptize生成的genProto genPtoto.cmd 在_build/default/bin下面 将其复制到可以被搜索的执行路径或者工作目录
     genProto ProtoInputDir HrlOutDir ErlOutDir
 
 # 简单描述
+
     可用于erlang游戏或者erlang其他网络应用的协议解析编码解码的项目,具有较高的编码解码性能，
     协议文件存放在proto目录 文件名为 Message protocol definition file的缩写 mpdf。
 
 # 支持的数据类型
+
     erl: int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer(整数 64位) number(整数或者浮点数 64位) string float(32位浮点数) double(64位浮点数) bool record(struct) 以及上面类型的列表
     lua(待修正): int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer(整数 64位) number(整数或者浮点数 64位) string float(32位浮点数) double(64位浮点数) bool record 以及上面类型的列表
     c#(待修正): int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer(整数 64位) number(整数或者浮点数 64位) string float(32位浮点数) double(64位浮点数) bool record 以及上面类型的列表
 
 # 各种数据类型的编码格式(字节序大端存储， string用utf8编码)
+
     int8：               直接存8bit的值       
     uint8：              直接存8bit的值  
     int16：              直接存16bit的值
@@ -39,6 +45,7 @@ Use
     list_+上面的数据类型的时候： 16bit的tag 用于存放 数组的长度 + 按数组顺序序列化每个元素的值的二进制数据
 
 ### maybe TODO
+
     生成的protoMsg.erl
     encode 函数参数列表太长时 换行显示
     encode返回的编码列表参数太多时 换行显示
@@ -46,10 +53,12 @@ Use
     decodeBin 返回元组元素太多时 换行显示
 
 ### 关于消息接收转发解码和发送
+
 	erlang通常会将接收到的消息由网关进程转发给其他工作进程， 建议先匹配消息id, 然后转发二进制消息到工作进程，然后由工作进程解码再处理
 	同时广播消息可先编码成二进制之后再广播， 避免重复编码
 
 ### erl部分简单性能测评
+
 	主要和gpb做简单对比测试
     gpb测试相关文件在test/gpb目录下
     测试协议：

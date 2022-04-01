@@ -1,5 +1,5 @@
 %% 测试协议 注释可以用 %% 也可以用 //
-test {
+cs_test {
 	string aa;
 }
 

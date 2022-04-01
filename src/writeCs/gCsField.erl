@@ -15,85 +15,36 @@
    , <<"double">>
 ]).
 
--define(TypeList, [
-   <<"bool">>
-   , <<"int8">>
-   , <<"uint8">>
-   , <<"int16">>
-   , <<"uint16">>
-   , <<"int32">>
-   , <<"uint32">>
-   , <<"int64">>
-   , <<"uint64">>
-   , <<"integer">>
-   , <<"number">>
-   , <<"float">>
-   , <<"double">>
-   , <<"string">>
-]).
-
 -define(TypeValue, [
-   {<<"bool">>, <<"false">>, <<"boolean()">>}
-   , {<<"int8">>, <<"0">>, <<"int8()">>}
-   , {<<"uint8">>, <<"0">>, <<"uint8()">>}
-   , {<<"int16">>, <<"0">>, <<"int16()">>}
-   , {<<"uint16">>, <<"0">>, <<"uint16()">>}
-   , {<<"int32">>, <<"0">>, <<"int32()">>}
-   , {<<"uint32">>, <<"0">>, <<"uint32()">>}
-   , {<<"int64">>, <<"0">>, <<"int64()">>}
-   , {<<"uint64">>, <<"0">>, <<"uint64()">>}
-   , {<<"integer">>, <<"0">>, <<"integer()">>}
-   , {<<"number">>, <<"0">>, <<"number()">>}
-   , {<<"float">>, <<"0.0">>, <<"float()">>}
-   , {<<"double">>, <<"0.0">>, <<"double()">>}
-   , {<<"string">>, <<"\"\"">>, <<"string()">>}
+   {<<"bool">>, <<"bool">>}
+   , {<<"int8">>, <<"sbyte">>}
+   , {<<"uint8">>, <<"byte">>}
+   , {<<"int16">>, <<"short">>}
+   , {<<"uint16">>, <<"ushort">>}
+   , {<<"int32">>, <<"int">>}
+   , {<<"uint32">>, <<"uint">>}
+   , {<<"int64">>, <<"long">>}
+   , {<<"uint64">>, <<"ulong">>}
+   , {<<"float">>, <<"float">>}
+   , {<<"double">>, <<"double">>}
+   , {<<"string">>, <<"string">>}
 ]).
 
 builtRecStr({TypeStr, NameStr}) ->
    case lists:keyfind(TypeStr, 1, ?TypeValue) of
-      {TypeStr, DefValueStr, DefTypeStr} ->
-         <<NameStr/binary, " = ", DefValueStr/binary, " :: ", DefTypeStr/binary, "\n">>;
+      {TypeStr, CSTypeStr} ->
+         <<"\t\tpublic ", CSTypeStr/binary, " ", NameStr/binary, ";\n">>;
       _ ->
          case TypeStr of
             <<"list[", LeftStr/binary>> ->
                [SubTypeStr | _] = re:split(LeftStr, <<"\\]">>, [{return, binary}]),
                case lists:keyfind(SubTypeStr, 1, ?TypeValue) of
-                  {SubTypeStr, _DefSubValueStr, DefSubTypeStr} ->
-                     <<NameStr/binary, " = [] :: [", DefSubTypeStr/binary, "]\n">>;
+                  {SubTypeStr, SubCSTypeStr} ->
+                     <<"\t\tpublic List<", SubCSTypeStr/binary, "> ", NameStr/binary, ";\n">>;
                   _ ->
-                     <<NameStr/binary, " = [] :: [#", SubTypeStr/binary, "{}]\n">>
+                     <<"\t\tpublic List<", SubTypeStr/binary, "> ", NameStr/binary, ";\n">>
                end;
             _ ->
-               <<NameStr/binary, " = undefined :: #", TypeStr/binary, "{}\n">>
+               <<"\t\tpublic ", TypeStr/binary, " ", NameStr/binary, ";\n">>
          end
    end.
-
-builtPackStr(TypeStr) ->
-   case lists:member(TypeStr, ?TypeList) of
-      true ->
-         <<"?", TypeStr/binary, "(">>;
-      _ ->
-         case TypeStr of
-            <<"list[", LeftStr/binary>> ->
-               [SubTypeStr | _] = re:split(LeftStr, <<"\\]">>, [{return, binary}]),
-               SubStr =
-                  case lists:member(SubTypeStr, ?TypeList) of
-                     true ->
-                        SubTypeStr;
-                     _ ->
-                        <<"record">>
-                  end,
-               <<"?list_", SubStr/binary, "(">>;
-            _ ->
-               <<"?record(">>
-         end
-   end.
-
-isBaseType(TypeStr) ->
-   lists:member(TypeStr, ?TypeList).
-
-
-
-
-
-

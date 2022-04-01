@@ -191,3 +191,18 @@ namespace ProtoMsg
         }
     }
 }
+
+        public byte[] Serialize()
+        {
+            using var memoryStream = new MemoryStream();
+            using var binaryWriter = new BinaryWriter(memoryStream);
+            Serialize(binaryWriter);
+            return memoryStream.ToArray();
+        }
+
+        public void Deserialize(byte[] data)
+        {
+            using var memoryStream = new MemoryStream(data);
+            using var binaryReader = new BinaryReader(memoryStream);
+            Deserialize(binaryReader);
+        }

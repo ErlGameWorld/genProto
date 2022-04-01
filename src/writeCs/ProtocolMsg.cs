@@ -328,6 +328,7 @@ namespace GenProto
 
     public class AllType : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<AllType>
     {
+        public const int protoId = 11;
         public bool Bool;
         public sbyte Int8;
         public byte UInt8;

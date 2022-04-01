@@ -1,1 +1,1 @@
-protoGen ../proto ./ ./
+genProto ../proto ./ ./
