@@ -853,3 +853,42 @@ decodeBin(1001, LeftBin0) ->
 decodeBin(_, _) ->
 	{undefinedHer, undefined, {}}.
 
+getMsgName(1)-> test;
+getMsgName(2)-> phoneNumber;
+getMsgName(3)-> person;
+getMsgName(4)-> addressBook;
+getMsgName(5)-> union;
+getMsgName(6)-> tbool;
+getMsgName(7)-> tint8;
+getMsgName(8)-> tuint8;
+getMsgName(9)-> tint16;
+getMsgName(10)-> tuint16;
+getMsgName(11)-> tint32;
+getMsgName(12)-> tuint32;
+getMsgName(13)-> tint64;
+getMsgName(14)-> tuint64;
+getMsgName(15)-> tinteger;
+getMsgName(16)-> tnumber;
+getMsgName(17)-> tfloat;
+getMsgName(18)-> tdouble;
+getMsgName(19)-> tstring;
+getMsgName(20)-> tlistbool;
+getMsgName(21)-> tlistint8;
+getMsgName(22)-> tlistuint8;
+getMsgName(23)-> tlistint16;
+getMsgName(24)-> tlistuint16;
+getMsgName(25)-> tlistint32;
+getMsgName(26)-> tlistuint32;
+getMsgName(27)-> tlistint64;
+getMsgName(28)-> tlistuint64;
+getMsgName(29)-> tlistinteger;
+getMsgName(30)-> tlistnumber;
+getMsgName(31)-> tlistfloat;
+getMsgName(32)-> tlistdouble;
+getMsgName(33)-> tliststring;
+getMsgName(34)-> tlistunion;
+getMsgName(35)-> allType;
+getMsgName(36)-> testnull;
+getMsgName(1001)-> person1;
+getMsgName(_) -> undefiend.
+

@@ -30,7 +30,7 @@
    , {<<"string">>, <<"string">>}
 ]).
 
-builtRecStr({TypeStr, NameStr}) ->
+builtMemberStr({TypeStr, NameStr}) ->
    case lists:keyfind(TypeStr, 1, ?TypeValue) of
       {TypeStr, CSTypeStr} ->
          <<"\t\tpublic ", CSTypeStr/binary, " ", NameStr/binary, ";\n">>;

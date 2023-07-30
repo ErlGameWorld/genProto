@@ -340,7 +340,7 @@ spellClassHead(MsgName, MsgId) ->
    <<"\tpublic class ", MsgName/binary, " : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<", MsgName/binary, ">\n\t{\n\t\tpublic const int ProtoId = ", (integer_to_binary(MsgId))/binary, ";\n">>.
 
 spellClassMember(FieldList) ->
-   <<<<(gCsField:builtRecStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>.
+   <<<<(gCsField:builtMemberStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>.
 
 spellCalssDSTem() ->
    <<"\n\t\tpublic byte[] Serialize()\n\t\t{\n\t\t\tusing var memoryStream = new MemoryStream();
@@ -369,7 +369,7 @@ spellCalssDeserialize(FieldList) ->
 spellClassEnd() ->
    <<"\t}\n">>.
 
-genCs(SortedSProtoList, _SortedErrList, _HrlDir, CSDir) ->
+genCs(SortedSProtoList, _SortedErrList, CSDir, _) ->
    FunSpell =
       fun({MsgName, MsgId, FieldList}, ClassBinAcc) ->
          H = spellClassHead(MsgName, MsgId),
@@ -383,15 +383,14 @@ genCs(SortedSProtoList, _SortedErrList, _HrlDir, CSDir) ->
    LastClassBinAcc = lists:foldl(FunSpell, <<>>, SortedSProtoList),
 
    %% todo error code
-   %% ErrCodeStr = spellErrCodeHrl(SortedErrList, <<>>),
 
    CSHeaderStr = protoHeader(),
    CSEndStr = protoEnd(),
-   OutputHrlStr = <<CSHeaderStr/binary, LastClassBinAcc/binary, CSEndStr/binary>>,
-   CSFilename = do_write_cs(CSDir, protoMsg, OutputHrlStr),
+   OutputCsStr = <<CSHeaderStr/binary, LastClassBinAcc/binary, CSEndStr/binary>>,
+   CSFilename = do_write_cs(CSDir, protoMsg, OutputCsStr),
 
-   io:format("protoConvert erl dir : ~s ~n", [CSDir]),
-   io:format("protoConvert to erl file ~s succ.~n", [CSFilename]),
+   io:format("protoConvert cs dir : ~s ~n", [CSDir]),
+   io:format("protoConvert to cs file ~s succ.~n", [CSFilename]),
    ok.
 
 do_write_cs(OutDir, Mod, BinStr) ->

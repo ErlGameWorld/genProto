@@ -42,15 +42,10 @@ Use
     double：             直接存放64bit的值
     bool：               占位8bit 如果为true 则存放的值为1 否则存放的值为0
     record(struct)：     如果是undefined 或者是空指针 则 8bit Tag 值为0, 否则 8bit的tag 值为1 + record的二进制数据
-    list_+上面的数据类型的时候： 16bit的tag 用于存放 数组的长度 + 按数组顺序序列化每个元素的值的二进制数据
+    list_+上面的数据类型的时候： 16bit的tag 用于存放 数组的长度 + 按数组顺序序列化每个元素的值的二进制数据(注意：如果列表类型为record(struct) 每个值序列化的时候并不会加 8bit的tag, 直接存record的二进制数据)
 
 ### maybe TODO
-
-    生成的protoMsg.erl
-    encode 函数参数列表太长时 换行显示
-    encode返回的编码列表参数太多时 换行显示
-    decodeBin simple类型解码列表过长时 换行显示
-    decodeBin 返回元组元素太多时 换行显示
+    lua 支持 integer number
 
 ### 关于消息接收转发解码和发送
 

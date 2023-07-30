@@ -687,11 +687,11 @@ genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir) ->
 
          {<<MsgHrlAcc/binary, HrlStr/binary>>, <<MsgEncodeAcc/binary, EncodeStr/binary>>, <<MsgDecodeAcc/binary, DecodeStr/binary>>, <<MsgIdAcc/binary, IdStr/binary>>, <<MsgNameAcc/binary, NameStr/binary>>}
       end,
-   {MsgHrlStr, TMsgEncodeStr, TMsgDecodeStr, _TMsgIdStr, _TMsgNameStr} = lists:foldl(FunSpell, {<<>>, <<>>, <<>>, <<>>, <<>>}, SortedSProtoList),
+   {MsgHrlStr, TMsgEncodeStr, TMsgDecodeStr, _TMsgIdStr, TMsgNameStr} = lists:foldl(FunSpell, {<<>>, <<>>, <<>>, <<>>, <<>>}, SortedSProtoList),
    MsgEncodeStr = <<TMsgEncodeStr/binary, "encodeIol(_, _) ->\n\t[].\n\n">>,
    MsgDecodeStr = <<TMsgDecodeStr/binary, "decodeBin(_, _) ->\n\t{undefinedHer, undefined, {}}.\n\n">>,
    _MsgIdStr = <<_TMsgIdStr/binary, "getMsgId(_) -> 0.\n\n">>,
-   _MsgNameStr = <<_TMsgNameStr/binary, "getMsgName(_) -> undefiend.\n\n">>,
+   MsgNameStr = <<TMsgNameStr/binary, "getMsgName(_) -> undefiend.\n\n">>,
 
    ErrCodeStr = spellErrCodeHrl(SortedErrList, <<>>),
 
@@ -703,7 +703,7 @@ genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir) ->
 
    ErlHeaderStr = protoErlHeader(),
    HrlHeaderStr = protoHrlHeader(),
-   OutputErlStr = <<ErlHeaderStr/binary, MsgEncodeRecStr/binary, MsgEncodeStr/binary, MsgDecodeRecStr/binary, MsgDecodeStr/binary>>,
+   OutputErlStr = <<ErlHeaderStr/binary, MsgEncodeRecStr/binary, MsgEncodeStr/binary, MsgDecodeRecStr/binary, MsgDecodeStr/binary, MsgNameStr/binary>>,
    OutputHrlStr = <<HrlHeaderStr/binary, ErrCodeStr/binary, "\n\n", MsgHrlStr/binary>>,
    HrlFilename = do_write_hrl(HrlDir, protoMsg, OutputHrlStr),
    ErlFilename = do_write_erl(ErlDir, protoMsg, OutputErlStr),
