@@ -12,10 +12,10 @@
 -define(min64, -9223372036854775808).
 -define(max64, 9223372036854775807).
 
--define(minF32, -3.4E+38).
--define(maxF32, 3.4E+38).
--define(minF64, -1.797E-308).
--define(maxF64, 1.797E+308).
+-define(minF32, 1.175494351E-38).
+-define(maxF32, 3.402823466E+38).
+-define(minF64, 2.2250738585072014E-308).
+-define(maxF64, 1.7976931348623158E+308).
 
 -define(int8(V), <<V:8>>).
 -define(uint8(V), <<V:8>>).

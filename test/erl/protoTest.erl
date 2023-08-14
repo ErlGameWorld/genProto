@@ -1,6 +1,6 @@
--module(test).
+-module(protoTest).
 
--include("protoMsg.hrl").
+-include("../erl/protoMsg.hrl").
 -compile(export_all).
 
 encode_int32(N) ->

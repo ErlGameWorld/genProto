@@ -8,14 +8,14 @@
 -opaque uint64() :: 0..18446744073709551615.
 -opaque double() :: float().
 
--define(ERR1, 1001).		%% 辅导费
--define(ERR2, 1002).		%% 444 
--define(ERR3, 1003).		%% 辅导费
--define(ERR4, 1004).		%% dfsf 
--define(ERR5, 1005).		%% 其他注释辅导费
--define(ERR6, 1006).		%% dfff
--define(ERR7, 1007).		%% def
--define(ERR8, 1008).		%% 其他注释辅导费 
+-define(ERR1, 1).		%% 辅导费
+-define(ERR2, 2).		%% 444 
+-define(ERR3, 3).		%% 辅导费
+-define(ERR4, 4).		%% dfsf 
+-define(ERR5, 5).		%% 其他注释辅导费 err6:dfff
+-define(ERR7, 6).		%% def
+-define(ERR8, 7).		%% 其他注释辅导费
+-define(ERR6, 1001).		%% dfff
 
 
 -record(test, {

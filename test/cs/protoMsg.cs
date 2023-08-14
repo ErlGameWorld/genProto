@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using MiscUtil.Conversion;
+using MiscUtil.IO;
 
 namespace GenProto
 {
@@ -10,13 +12,13 @@ namespace GenProto
     {
         public interface ISerialize
         {
-            void Serialize(BinaryWriter binaryWriter);
+            void Serialize(EndianBinaryWriter binaryWriter);
             byte[] Serialize();
         }
 
         public interface IDeserialize<T>
         {
-            void Deserialize(BinaryReader binaryReader);
+            void Deserialize(EndianBinaryReader binaryReader);
             void Deserialize(byte[] data);
         }
 
@@ -57,7 +59,7 @@ namespace GenProto
             };
         }
 
-        public static void WriteValue<T>(this BinaryWriter binaryWriter, T value)
+        public static void WriteValue<T>(this EndianBinaryWriter binaryWriter, T value)
         {
             switch (value)
             {
@@ -95,11 +97,13 @@ namespace GenProto
                     binaryWriter.Write(doubleValue);
                     break;
                 case string stringValue:
-                    binaryWriter.Write(stringValue);
+                    var bytesLength = (ushort)binaryWriter.Encoding.GetByteCount(stringValue);
+                    binaryWriter.Write(bytesLength);
+                    var bytes = binaryWriter.Encoding.GetBytes(stringValue);
+                    binaryWriter.Write(bytes);
                     break;
                 default:
                 {
-                    binaryWriter.Write(value != null);
                     switch (value)
                     {
                         case IList listValue:
@@ -116,104 +120,92 @@ namespace GenProto
 
                             break;
                     }
-
                     break;
                 }
             }
         }
 
 
-        public static void WriteList(this BinaryWriter binaryWriter, IList list)
+        public static void WriteList(this EndianBinaryWriter binaryWriter, IList list)
         {
-            var length = (ushort) (list?.Count ?? 0);
+            var length = (ushort)(list?.Count ?? 0);
             binaryWriter.Write(length);
 
             if (list == null) return;
             for (var idx = 0; idx < length; idx++)
             {
                 var value = list[idx];
-
-                if (idx == 0)
-                {
-                    var basicType = JudgeType(value);
-                    binaryWriter.Write((byte) basicType);
-                }
-
                 binaryWriter.WriteValue(value);
             }
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out bool value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out bool value)
         {
             value = binaryReader.ReadBoolean();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out sbyte value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out sbyte value)
         {
             value = binaryReader.ReadSByte();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out byte value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out byte value)
         {
             value = binaryReader.ReadByte();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out ushort value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out ushort value)
         {
             value = binaryReader.ReadUInt16();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out short value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out short value)
         {
             value = binaryReader.ReadInt16();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out int value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out int value)
         {
             value = binaryReader.ReadInt32();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out uint value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out uint value)
         {
             value = binaryReader.ReadUInt32();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out long value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out long value)
         {
             value = binaryReader.ReadInt64();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out ulong value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out ulong value)
         {
             value = binaryReader.ReadUInt64();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out float value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out float value)
         {
             value = binaryReader.ReadSingle();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out double value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out double value)
         {
             value = binaryReader.ReadDouble();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out string value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out string value)
         {
-            value = binaryReader.ReadString();
+            var bytesLength = binaryReader.ReadUInt16();
+            var bytes = binaryReader.ReadBytes(bytesLength);
+            value = binaryReader.Encoding.GetString(bytes, 0, bytes.Length);
         }
 
-        public static void ReadValue<T>(this BinaryReader binaryReader, out T value) where T : new()
+        public static void ReadValue<T>(this EndianBinaryReader binaryReader, out T value) where T : new()
         {
             value = default;
-            var haveValue = binaryReader.ReadBoolean();
-            if (!haveValue)
-            {
-                return;
-            }
-
             value = new T();
-            if (!(value is IDeserialize<T> deserialize))
+            if (value is not IDeserialize<T> deserialize)
             {
                 throw new InvalidOperationException($"error type: {typeof(T).FullName}");
             }
@@ -221,15 +213,10 @@ namespace GenProto
             deserialize.Deserialize(binaryReader);
         }
 
-        public static void ReadValue<T>(this BinaryReader binaryReader, out List<T> outList) where T : new()
+        public static void ReadValue<T>(this EndianBinaryReader binaryReader, out List<T> outList, BasicTypeEnum basicTypeEnum) where T : new()
         {
             outList = default;
             IList list = default;
-            var haveValue = binaryReader.ReadBoolean();
-            if (!haveValue)
-            {
-                return;
-            }
 
             var length = binaryReader.ReadUInt16();
             if (length <= 0)
@@ -237,7 +224,6 @@ namespace GenProto
                 return;
             }
 
-            var basicTypeEnum = (BasicTypeEnum) binaryReader.ReadByte();
             for (var idx = 0; idx < length; idx++)
             {
                 switch (basicTypeEnum)
@@ -304,19 +290,12 @@ namespace GenProto
                         break;
                     case BasicTypeEnum.Custom:
                         list ??= new List<T>(length);
-                        var state = binaryReader.ReadBoolean();
-                        if (state)
-                        {
-                            if (new T() is IDeserialize<T> item)
+                        if (new T() is IDeserialize<T> item)
                             {
                                 item.Deserialize(binaryReader);
                                 list.Add(item);
                             }
-                        }
-
                         break;
-
-
                     default:
                         throw new InvalidOperationException();
                 }
@@ -332,7 +311,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -340,14 +319,14 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(aa);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out aa);
 		}
@@ -361,7 +340,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -369,17 +348,28 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
-			binaryWriter.WriteValue(number);
+			if (number != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(number);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
 			binaryWriter.WriteValue(type);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out number);
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out number);
+			}
 			binaryReader.ReadValue(out type);
 		}
 	}
@@ -394,7 +384,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -402,22 +392,22 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(name);
 			binaryWriter.WriteValue(id);
 			binaryWriter.WriteValue(email);
 			binaryWriter.WriteValue(phone);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out name);
 			binaryReader.ReadValue(out id);
 			binaryReader.ReadValue(out email);
-			binaryReader.ReadValue(out phone);
+			binaryReader.ReadValue(out phone, ProtocolCore.BasicTypeEnum.Custom);
 		}
 	}
 	public class addressBook : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<addressBook>
@@ -429,7 +419,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -437,18 +427,18 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(person);
 			binaryWriter.WriteValue(other);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out person);
-			binaryReader.ReadValue(out other);
+			binaryReader.ReadValue(out person, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out other, ProtocolCore.BasicTypeEnum.Custom);
 		}
 	}
 	public class union : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<union>
@@ -460,7 +450,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -468,15 +458,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(test);
 			binaryWriter.WriteValue(type);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out test);
 			binaryReader.ReadValue(out type);
@@ -490,7 +480,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -498,14 +488,14 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(bool);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out bool);
 		}
@@ -519,7 +509,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -527,15 +517,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -550,7 +540,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -558,15 +548,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -581,7 +571,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -589,15 +579,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -612,7 +602,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -620,15 +610,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -651,7 +641,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -659,10 +649,10 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
@@ -675,7 +665,7 @@ namespace GenProto
 			binaryWriter.WriteValue(int9);
 			binaryWriter.WriteValue(int10);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -698,7 +688,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -706,15 +696,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -729,7 +719,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -737,15 +727,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -760,7 +750,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -768,15 +758,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -797,7 +787,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -805,30 +795,118 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
-			binaryWriter.WriteValue(int1);
-			binaryWriter.WriteValue(int2);
-			binaryWriter.WriteValue(int3);
-			binaryWriter.WriteValue(int4);
-			binaryWriter.WriteValue(int5);
-			binaryWriter.WriteValue(int6);
-			binaryWriter.WriteValue(int7);
-			binaryWriter.WriteValue(int8);
+			if (int1 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int1);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int2 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int2);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int3 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int3);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int4 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int4);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int5 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int5);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int6 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int6);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int7 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int7);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int8 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int8);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
-			binaryReader.ReadValue(out int2);
-			binaryReader.ReadValue(out int3);
-			binaryReader.ReadValue(out int4);
-			binaryReader.ReadValue(out int5);
-			binaryReader.ReadValue(out int6);
-			binaryReader.ReadValue(out int7);
-			binaryReader.ReadValue(out int8);
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int1);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int2);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int3);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int4);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int5);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int6);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int7);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int8);
+			}
 		}
 	}
 	public class tnumber : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tnumber>
@@ -848,7 +926,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -856,34 +934,144 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
-			binaryWriter.WriteValue(int1);
-			binaryWriter.WriteValue(int2);
-			binaryWriter.WriteValue(int3);
-			binaryWriter.WriteValue(int4);
-			binaryWriter.WriteValue(int5);
-			binaryWriter.WriteValue(int6);
-			binaryWriter.WriteValue(int7);
-			binaryWriter.WriteValue(int8);
-			binaryWriter.WriteValue(float1);
-			binaryWriter.WriteValue(float2);
+			if (int1 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int1);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int2 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int2);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int3 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int3);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int4 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int4);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int5 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int5);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int6 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int6);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int7 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int7);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (int8 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(int8);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (float1 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(float1);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (float2 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(float2);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
-			binaryReader.ReadValue(out int2);
-			binaryReader.ReadValue(out int3);
-			binaryReader.ReadValue(out int4);
-			binaryReader.ReadValue(out int5);
-			binaryReader.ReadValue(out int6);
-			binaryReader.ReadValue(out int7);
-			binaryReader.ReadValue(out int8);
-			binaryReader.ReadValue(out float1);
-			binaryReader.ReadValue(out float2);
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int1);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int2);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int3);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int4);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int5);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int6);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int7);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out int8);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out float1);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out float2);
+			}
 		}
 	}
 	public class tfloat : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tfloat>
@@ -895,7 +1083,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -903,15 +1091,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -926,7 +1114,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -934,15 +1122,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -957,7 +1145,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -965,15 +1153,15 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 			binaryWriter.WriteValue(int2);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out int1);
 			binaryReader.ReadValue(out int2);
@@ -987,7 +1175,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -995,16 +1183,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.Boolean);
 		}
 	}
 	public class tlistint8 : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistint8>
@@ -1015,7 +1203,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1023,16 +1211,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.Int8);
 		}
 	}
 	public class tlistuint8 : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistuint8>
@@ -1043,7 +1231,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1051,16 +1239,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.UInt8);
 		}
 	}
 	public class tlistint16 : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistint16>
@@ -1071,7 +1259,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1079,16 +1267,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.Int16);
 		}
 	}
 	public class tlistuint16 : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistuint16>
@@ -1099,7 +1287,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1107,16 +1295,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.UInt16);
 		}
 	}
 	public class tlistint32 : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistint32>
@@ -1127,7 +1315,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1135,16 +1323,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.Int32);
 		}
 	}
 	public class tlistuint32 : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistuint32>
@@ -1155,7 +1343,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1163,16 +1351,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.UInt32);
 		}
 	}
 	public class tlistint64 : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistint64>
@@ -1183,7 +1371,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1191,16 +1379,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.Int64);
 		}
 	}
 	public class tlistuint64 : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistuint64>
@@ -1211,7 +1399,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1219,16 +1407,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.UInt64);
 		}
 	}
 	public class tlistinteger : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistinteger>
@@ -1239,7 +1427,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1247,16 +1435,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.Custom);
 		}
 	}
 	public class tlistnumber : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistnumber>
@@ -1267,7 +1455,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1275,16 +1463,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.Custom);
 		}
 	}
 	public class tlistfloat : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistfloat>
@@ -1295,7 +1483,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1303,16 +1491,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.Float);
 		}
 	}
 	public class tlistdouble : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistdouble>
@@ -1323,7 +1511,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1331,16 +1519,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.Double);
 		}
 	}
 	public class tliststring : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tliststring>
@@ -1351,7 +1539,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1359,16 +1547,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.String);
 		}
 	}
 	public class tlistunion : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<tlistunion>
@@ -1379,7 +1567,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1387,16 +1575,16 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(int1);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
-			binaryReader.ReadValue(out int1);
+			binaryReader.ReadValue(out int1, ProtocolCore.BasicTypeEnum.Custom);
 		}
 	}
 	public class allType : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<allType>
@@ -1461,7 +1649,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1469,10 +1657,10 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(bool);
 			binaryWriter.WriteValue(int8);
@@ -1483,29 +1671,181 @@ namespace GenProto
 			binaryWriter.WriteValue(uint32);
 			binaryWriter.WriteValue(int64);
 			binaryWriter.WriteValue(uint64);
-			binaryWriter.WriteValue(inte8);
-			binaryWriter.WriteValue(uinte8);
-			binaryWriter.WriteValue(inte16);
-			binaryWriter.WriteValue(uinte16);
-			binaryWriter.WriteValue(inte32);
-			binaryWriter.WriteValue(uinte32);
-			binaryWriter.WriteValue(inte64);
-			binaryWriter.WriteValue(uinte64);
-			binaryWriter.WriteValue(num8);
-			binaryWriter.WriteValue(unum8);
-			binaryWriter.WriteValue(num16);
-			binaryWriter.WriteValue(unum16);
-			binaryWriter.WriteValue(num32);
-			binaryWriter.WriteValue(unum32);
-			binaryWriter.WriteValue(num64);
-			binaryWriter.WriteValue(unum64);
-			binaryWriter.WriteValue(numfloat);
-			binaryWriter.WriteValue(numdouble);
+			if (inte8 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(inte8);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (uinte8 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(uinte8);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (inte16 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(inte16);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (uinte16 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(uinte16);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (inte32 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(inte32);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (uinte32 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(uinte32);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (inte64 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(inte64);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (uinte64 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(uinte64);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (num8 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(num8);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (unum8 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(unum8);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (num16 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(num16);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (unum16 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(unum16);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (num32 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(num32);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (unum32 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(unum32);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (num64 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(num64);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (unum64 != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(unum64);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (numfloat != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(numfloat);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
+			if (numdouble != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(numdouble);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
 			binaryWriter.WriteValue(float);
 			binaryWriter.WriteValue(double);
 			binaryWriter.WriteValue(string1);
 			binaryWriter.WriteValue(string2);
-			binaryWriter.WriteValue(union);
+			if (union != null)
+			{
+				binaryWriter.WriteValue(1);
+				binaryWriter.WriteValue(union);
+			}
+			else
+			{
+				binaryWriter.WriteValue(0);
+			}
 			binaryWriter.WriteValue(lbool);
 			binaryWriter.WriteValue(lint8);
 			binaryWriter.WriteValue(luint8);
@@ -1530,7 +1870,7 @@ namespace GenProto
 			binaryWriter.WriteValue(lstring);
 			binaryWriter.WriteValue(lunion);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out bool);
 			binaryReader.ReadValue(out int8);
@@ -1541,52 +1881,109 @@ namespace GenProto
 			binaryReader.ReadValue(out uint32);
 			binaryReader.ReadValue(out int64);
 			binaryReader.ReadValue(out uint64);
-			binaryReader.ReadValue(out inte8);
-			binaryReader.ReadValue(out uinte8);
-			binaryReader.ReadValue(out inte16);
-			binaryReader.ReadValue(out uinte16);
-			binaryReader.ReadValue(out inte32);
-			binaryReader.ReadValue(out uinte32);
-			binaryReader.ReadValue(out inte64);
-			binaryReader.ReadValue(out uinte64);
-			binaryReader.ReadValue(out num8);
-			binaryReader.ReadValue(out unum8);
-			binaryReader.ReadValue(out num16);
-			binaryReader.ReadValue(out unum16);
-			binaryReader.ReadValue(out num32);
-			binaryReader.ReadValue(out unum32);
-			binaryReader.ReadValue(out num64);
-			binaryReader.ReadValue(out unum64);
-			binaryReader.ReadValue(out numfloat);
-			binaryReader.ReadValue(out numdouble);
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out inte8);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out uinte8);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out inte16);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out uinte16);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out inte32);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out uinte32);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out inte64);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out uinte64);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out num8);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out unum8);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out num16);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out unum16);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out num32);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out unum32);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out num64);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out unum64);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out numfloat);
+			}
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out numdouble);
+			}
 			binaryReader.ReadValue(out float);
 			binaryReader.ReadValue(out double);
 			binaryReader.ReadValue(out string1);
 			binaryReader.ReadValue(out string2);
-			binaryReader.ReadValue(out union);
-			binaryReader.ReadValue(out lbool);
-			binaryReader.ReadValue(out lint8);
-			binaryReader.ReadValue(out luint8);
-			binaryReader.ReadValue(out lint16);
-			binaryReader.ReadValue(out luint16);
-			binaryReader.ReadValue(out lint32);
-			binaryReader.ReadValue(out luint32);
-			binaryReader.ReadValue(out lint64);
-			binaryReader.ReadValue(out luint64);
-			binaryReader.ReadValue(out linte8);
-			binaryReader.ReadValue(out linte16);
-			binaryReader.ReadValue(out linte32);
-			binaryReader.ReadValue(out linte64);
-			binaryReader.ReadValue(out lnum8);
-			binaryReader.ReadValue(out lnum16);
-			binaryReader.ReadValue(out lnum32);
-			binaryReader.ReadValue(out lnum64);
-			binaryReader.ReadValue(out lnfloat32);
-			binaryReader.ReadValue(out lnfloat64);
-			binaryReader.ReadValue(out lfloat);
-			binaryReader.ReadValue(out ldouble);
-			binaryReader.ReadValue(out lstring);
-			binaryReader.ReadValue(out lunion);
+			if (binaryReader.ReadBoolean())
+			{
+				binaryReader.ReadValue(out union);
+			}
+			binaryReader.ReadValue(out lbool, ProtocolCore.BasicTypeEnum.Boolean);
+			binaryReader.ReadValue(out lint8, ProtocolCore.BasicTypeEnum.Int8);
+			binaryReader.ReadValue(out luint8, ProtocolCore.BasicTypeEnum.UInt8);
+			binaryReader.ReadValue(out lint16, ProtocolCore.BasicTypeEnum.Int16);
+			binaryReader.ReadValue(out luint16, ProtocolCore.BasicTypeEnum.UInt16);
+			binaryReader.ReadValue(out lint32, ProtocolCore.BasicTypeEnum.Int32);
+			binaryReader.ReadValue(out luint32, ProtocolCore.BasicTypeEnum.UInt32);
+			binaryReader.ReadValue(out lint64, ProtocolCore.BasicTypeEnum.Int64);
+			binaryReader.ReadValue(out luint64, ProtocolCore.BasicTypeEnum.UInt64);
+			binaryReader.ReadValue(out linte8, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out linte16, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out linte32, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out linte64, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out lnum8, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out lnum16, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out lnum32, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out lnum64, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out lnfloat32, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out lnfloat64, ProtocolCore.BasicTypeEnum.Custom);
+			binaryReader.ReadValue(out lfloat, ProtocolCore.BasicTypeEnum.Float);
+			binaryReader.ReadValue(out ldouble, ProtocolCore.BasicTypeEnum.Double);
+			binaryReader.ReadValue(out lstring, ProtocolCore.BasicTypeEnum.String);
+			binaryReader.ReadValue(out lunion, ProtocolCore.BasicTypeEnum.Custom);
 		}
 	}
 	public class testnull : ProtocolCore.ISerialize, ProtocolCore.IDeserialize<testnull>
@@ -1596,7 +1993,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1604,13 +2001,13 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 		}
 	}
@@ -1625,7 +2022,7 @@ namespace GenProto
 		public byte[] Serialize()
 		{
 			using var memoryStream = new MemoryStream();
-			using var binaryWriter = new BinaryWriter(memoryStream);
+			using var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 			Serialize(binaryWriter);
 			return memoryStream.ToArray();
 		}
@@ -1633,22 +2030,22 @@ namespace GenProto
 		public void Deserialize(byte[] data)
 		{
 			using var memoryStream = new MemoryStream(data);
-			using var binaryReader = new BinaryReader(memoryStream);
+			using var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 			Deserialize(binaryReader);
 		}
-		public void Serialize(BinaryWriter binaryWriter)
+		public void Serialize(EndianBinaryWriter binaryWriter)
 		{
 			binaryWriter.WriteValue(name);
 			binaryWriter.WriteValue(id);
 			binaryWriter.WriteValue(email);
 			binaryWriter.WriteValue(phone);
 		}
-		public void Deserialize(BinaryReader binaryReader)
+		public void Deserialize(EndianBinaryReader binaryReader)
 		{
 			binaryReader.ReadValue(out name);
 			binaryReader.ReadValue(out id);
 			binaryReader.ReadValue(out email);
-			binaryReader.ReadValue(out phone);
+			binaryReader.ReadValue(out phone, ProtocolCore.BasicTypeEnum.Custom);
 		}
 	}
 }

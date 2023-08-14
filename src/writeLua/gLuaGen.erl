@@ -13,7 +13,7 @@ spellMember(FieldList) ->
 spellEncode(FieldList) ->
    EnHead = <<"\n\ttb.encode = function(byteArray)\n">>,
    EnBody = <<<<(gLuaField:builtEncodeStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>,
-   EnEnd = <<"\t\treturn byteArray\n\tend\n\n">>,
+   EnEnd = <<"\t\treturn byteArray.getBytes()\n\tend\n\n">>,
    <<EnHead/binary, EnBody/binary, EnEnd/binary>>.
 
 spellDecode(FieldList) ->
@@ -23,7 +23,7 @@ spellDecode(FieldList) ->
    <<EnHead/binary, EnBody/binary, EnEnd/binary>>.
 
 spellBuild(MsgId) ->
-   <<"\ttb.build = function(byteArray)\n\t\tbyteArray.write_uint16(", (integer_to_binary(MsgId))/binary, ")\n\t\treturn tb.encode(byteArray)\n\tend\n\n">>.
+   <<"\ttb.build = function(byteArray)\n\t\tbyteArray.setBytes({})\n\t\tbyteArray.write_uint16(", (integer_to_binary(MsgId))/binary, ")\n\t\treturn tb.encode(byteArray)\n\tend\n\n">>.
 
 spellEnd() ->
    <<"\treturn tb\nend\n\n">>.

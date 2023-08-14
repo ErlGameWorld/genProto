@@ -1,4 +1,4 @@
--module(test).
+-module(protoTest).
 
 -include("protoMsg.hrl").
 -compile(export_all).

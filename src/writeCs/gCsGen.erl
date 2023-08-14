@@ -5,11 +5,13 @@
 ]).
 
 protoHeader() ->
-   <<"using System;
+<<"using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using MiscUtil.Conversion;
+using MiscUtil.IO;
 
 namespace GenProto
 {
@@ -17,13 +19,13 @@ namespace GenProto
     {
         public interface ISerialize
         {
-            void Serialize(BinaryWriter binaryWriter);
+            void Serialize(EndianBinaryWriter binaryWriter);
             byte[] Serialize();
         }
 
         public interface IDeserialize<T>
         {
-            void Deserialize(BinaryReader binaryReader);
+            void Deserialize(EndianBinaryReader binaryReader);
             void Deserialize(byte[] data);
         }
 
@@ -64,7 +66,7 @@ namespace GenProto
             };
         }
 
-        public static void WriteValue<T>(this BinaryWriter binaryWriter, T value)
+        public static void WriteValue<T>(this EndianBinaryWriter binaryWriter, T value)
         {
             switch (value)
             {
@@ -102,11 +104,13 @@ namespace GenProto
                     binaryWriter.Write(doubleValue);
                     break;
                 case string stringValue:
-                    binaryWriter.Write(stringValue);
+                    var bytesLength = (ushort)binaryWriter.Encoding.GetByteCount(stringValue);
+                    binaryWriter.Write(bytesLength);
+                    var bytes = binaryWriter.Encoding.GetBytes(stringValue);
+                    binaryWriter.Write(bytes);
                     break;
                 default:
                 {
-                    binaryWriter.Write(value != null);
                     switch (value)
                     {
                         case IList listValue:
@@ -123,104 +127,92 @@ namespace GenProto
 
                             break;
                     }
-
                     break;
                 }
             }
         }
 
 
-        public static void WriteList(this BinaryWriter binaryWriter, IList list)
+        public static void WriteList(this EndianBinaryWriter binaryWriter, IList list)
         {
-            var length = (ushort) (list?.Count ?? 0);
+            var length = (ushort)(list?.Count ?? 0);
             binaryWriter.Write(length);
 
             if (list == null) return;
             for (var idx = 0; idx < length; idx++)
             {
                 var value = list[idx];
-
-                if (idx == 0)
-                {
-                    var basicType = JudgeType(value);
-                    binaryWriter.Write((byte) basicType);
-                }
-
                 binaryWriter.WriteValue(value);
             }
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out bool value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out bool value)
         {
             value = binaryReader.ReadBoolean();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out sbyte value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out sbyte value)
         {
             value = binaryReader.ReadSByte();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out byte value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out byte value)
         {
             value = binaryReader.ReadByte();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out ushort value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out ushort value)
         {
             value = binaryReader.ReadUInt16();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out short value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out short value)
         {
             value = binaryReader.ReadInt16();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out int value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out int value)
         {
             value = binaryReader.ReadInt32();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out uint value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out uint value)
         {
             value = binaryReader.ReadUInt32();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out long value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out long value)
         {
             value = binaryReader.ReadInt64();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out ulong value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out ulong value)
         {
             value = binaryReader.ReadUInt64();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out float value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out float value)
         {
             value = binaryReader.ReadSingle();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out double value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out double value)
         {
             value = binaryReader.ReadDouble();
         }
 
-        public static void ReadValue(this BinaryReader binaryReader, out string value)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out string value)
         {
-            value = binaryReader.ReadString();
+            var bytesLength = binaryReader.ReadUInt16();
+            var bytes = binaryReader.ReadBytes(bytesLength);
+            value = binaryReader.Encoding.GetString(bytes, 0, bytes.Length);
         }
 
-        public static void ReadValue<T>(this BinaryReader binaryReader, out T value) where T : new()
+        public static void ReadValue<T>(this EndianBinaryReader binaryReader, out T value) where T : new()
         {
             value = default;
-            var haveValue = binaryReader.ReadBoolean();
-            if (!haveValue)
-            {
-                return;
-            }
-
             value = new T();
-            if (!(value is IDeserialize<T> deserialize))
+            if (value is not IDeserialize<T> deserialize)
             {
                 throw new InvalidOperationException($\"error type: {typeof(T).FullName}\");
             }
@@ -228,15 +220,10 @@ namespace GenProto
             deserialize.Deserialize(binaryReader);
         }
 
-        public static void ReadValue<T>(this BinaryReader binaryReader, out List<T> outList) where T : new()
+        public static void ReadValue<T>(this EndianBinaryReader binaryReader, out List<T> outList, BasicTypeEnum basicTypeEnum) where T : new()
         {
             outList = default;
             IList list = default;
-            var haveValue = binaryReader.ReadBoolean();
-            if (!haveValue)
-            {
-                return;
-            }
 
             var length = binaryReader.ReadUInt16();
             if (length <= 0)
@@ -244,7 +231,6 @@ namespace GenProto
                 return;
             }
 
-            var basicTypeEnum = (BasicTypeEnum) binaryReader.ReadByte();
             for (var idx = 0; idx < length; idx++)
             {
                 switch (basicTypeEnum)
@@ -311,19 +297,12 @@ namespace GenProto
                         break;
                     case BasicTypeEnum.Custom:
                         list ??= new List<T>(length);
-                        var state = binaryReader.ReadBoolean();
-                        if (state)
-                        {
-                            if (new T() is IDeserialize<T> item)
+                        if (new T() is IDeserialize<T> item)
                             {
                                 item.Deserialize(binaryReader);
                                 list.Add(item);
                             }
-                        }
-
                         break;
-
-
                     default:
                         throw new InvalidOperationException();
                 }
@@ -344,7 +323,7 @@ spellClassMember(FieldList) ->
 
 spellCalssDSTem() ->
    <<"\n\t\tpublic byte[] Serialize()\n\t\t{\n\t\t\tusing var memoryStream = new MemoryStream();
-\t\t\tusing var binaryWriter = new BinaryWriter(memoryStream);
+\t\t\tusing var binaryWriter = new EndianBinaryWriter(EndianBitConverter.Big, memoryStream);
 \t\t\tSerialize(binaryWriter);
 \t\t\treturn memoryStream.ToArray();
 \t\t}
@@ -352,18 +331,18 @@ spellCalssDSTem() ->
 \t\tpublic void Deserialize(byte[] data)
 \t\t{
 \t\t\tusing var memoryStream = new MemoryStream(data);
-\t\t\tusing var binaryReader = new BinaryReader(memoryStream);
+\t\t\tusing var binaryReader = new EndianBinaryReader(EndianBitConverter.Big, memoryStream);
 \t\t\tDeserialize(binaryReader);
 \t\t}\n">>.
 
 spellCalssSerialize(FieldList) ->
-   FunHead = <<"\t\tpublic void Serialize(BinaryWriter binaryWriter)\n\t\t{\n">>,
-   FunBody = <<<<"\t\t\tbinaryWriter.WriteValue(", NameStr/binary, ");\n">> || {_TypeStr, NameStr} <- FieldList>>,
+   FunHead = <<"\t\tpublic void Serialize(EndianBinaryWriter binaryWriter)\n\t\t{\n">>,
+   FunBody = <<<<(gCsField:builtEncodeStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>,
    <<FunHead/binary, FunBody/binary, "\t\t}\n">>.
 
 spellCalssDeserialize(FieldList) ->
-   FunHead = <<"\t\tpublic void Deserialize(BinaryReader binaryReader)\n\t\t{\n">>,
-   FunBody = <<<<"\t\t\tbinaryReader.ReadValue(out ", NameStr/binary, ");\n">> || {_TypeStr, NameStr} <- FieldList>>,
+   FunHead = <<"\t\tpublic void Deserialize(EndianBinaryReader binaryReader)\n\t\t{\n">>,
+   FunBody = <<<<(gCsField:builtDecodeStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>,
    <<FunHead/binary, FunBody/binary, "\t\t}\n">>.
 
 spellClassEnd() ->

@@ -5,7 +5,7 @@ function test()
 
 	tb.encode = function(byteArray)
 		byteArray.write_string(tb.aa)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -13,6 +13,7 @@ function test()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(1)
 		return tb.encode(byteArray)
 	end
@@ -34,7 +35,7 @@ function phoneNumber()
 			byteArray.write_uint8(0)
 		end
 		byteArray.write_int32(tb.type)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -49,6 +50,7 @@ function phoneNumber()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(2)
 		return tb.encode(byteArray)
 	end
@@ -72,7 +74,7 @@ function person()
 		for k, v in pairs(tb.phone) do
 			byteArray = v.encode(byteArray)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -89,6 +91,7 @@ function person()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(3)
 		return tb.encode(byteArray)
 	end
@@ -111,7 +114,7 @@ function addressBook()
 		for k, v in pairs(tb.other) do
 			byteArray = v.encode(byteArray)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -132,6 +135,7 @@ function addressBook()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(4)
 		return tb.encode(byteArray)
 	end
@@ -148,7 +152,7 @@ function union()
 	tb.encode = function(byteArray)
 		byteArray.write_string(tb.test)
 		byteArray.write_int32(tb.type)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -157,6 +161,7 @@ function union()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(5)
 		return tb.encode(byteArray)
 	end
@@ -171,7 +176,7 @@ function tbool()
 
 	tb.encode = function(byteArray)
 		byteArray.write_bool(tb.bool)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -179,6 +184,7 @@ function tbool()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(6)
 		return tb.encode(byteArray)
 	end
@@ -195,7 +201,7 @@ function tint8()
 	tb.encode = function(byteArray)
 		byteArray.write_int8(tb.int1)
 		byteArray.write_int8(tb.int2)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -204,6 +210,7 @@ function tint8()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(7)
 		return tb.encode(byteArray)
 	end
@@ -220,7 +227,7 @@ function tuint8()
 	tb.encode = function(byteArray)
 		byteArray.write_uint8(tb.int1)
 		byteArray.write_uint8(tb.int2)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -229,6 +236,7 @@ function tuint8()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(8)
 		return tb.encode(byteArray)
 	end
@@ -245,7 +253,7 @@ function tint16()
 	tb.encode = function(byteArray)
 		byteArray.write_int16(tb.int1)
 		byteArray.write_int16(tb.int2)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -254,6 +262,7 @@ function tint16()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(9)
 		return tb.encode(byteArray)
 	end
@@ -270,7 +279,7 @@ function tuint16()
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(tb.int1)
 		byteArray.write_uint16(tb.int2)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -279,6 +288,7 @@ function tuint16()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(10)
 		return tb.encode(byteArray)
 	end
@@ -311,7 +321,7 @@ function tint32()
 		byteArray.write_int32(tb.int8)
 		byteArray.write_int32(tb.int9)
 		byteArray.write_int32(tb.int10)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -328,6 +338,7 @@ function tint32()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(11)
 		return tb.encode(byteArray)
 	end
@@ -344,7 +355,7 @@ function tuint32()
 	tb.encode = function(byteArray)
 		byteArray.write_uint32(tb.int1)
 		byteArray.write_uint32(tb.int2)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -353,6 +364,7 @@ function tuint32()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(12)
 		return tb.encode(byteArray)
 	end
@@ -369,7 +381,7 @@ function tint64()
 	tb.encode = function(byteArray)
 		byteArray.write_int64(tb.int1)
 		byteArray.write_int64(tb.int2)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -378,6 +390,7 @@ function tint64()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(13)
 		return tb.encode(byteArray)
 	end
@@ -394,7 +407,7 @@ function tuint64()
 	tb.encode = function(byteArray)
 		byteArray.write_uint64(tb.int1)
 		byteArray.write_uint64(tb.int2)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -403,6 +416,7 @@ function tuint64()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(14)
 		return tb.encode(byteArray)
 	end
@@ -413,127 +427,40 @@ end
 function tinteger()
 	local tb = {}
 	tb.msgId =15
-	t.int1 = {}
-	t.int2 = {}
-	t.int3 = {}
-	t.int4 = {}
-	t.int5 = {}
-	t.int6 = {}
-	t.int7 = {}
-	t.int8 = {}
+	t.int1 = 0
+	t.int2 = 0
+	t.int3 = 0
+	t.int4 = 0
+	t.int5 = 0
+	t.int6 = 0
+	t.int7 = 0
+	t.int8 = 0
 
 	tb.encode = function(byteArray)
-		if tb.int1 and next(tb.int1) then
-			byteArray.write_uint8(1)
-			tb.int1.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int2 and next(tb.int2) then
-			byteArray.write_uint8(1)
-			tb.int2.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int3 and next(tb.int3) then
-			byteArray.write_uint8(1)
-			tb.int3.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int4 and next(tb.int4) then
-			byteArray.write_uint8(1)
-			tb.int4.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int5 and next(tb.int5) then
-			byteArray.write_uint8(1)
-			tb.int5.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int6 and next(tb.int6) then
-			byteArray.write_uint8(1)
-			tb.int6.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int7 and next(tb.int7) then
-			byteArray.write_uint8(1)
-			tb.int7.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int8 and next(tb.int8) then
-			byteArray.write_uint8(1)
-			tb.int8.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		return byteArray
+		byteArray.write_integer(tb.int1)
+		byteArray.write_integer(tb.int2)
+		byteArray.write_integer(tb.int3)
+		byteArray.write_integer(tb.int4)
+		byteArray.write_integer(tb.int5)
+		byteArray.write_integer(tb.int6)
+		byteArray.write_integer(tb.int7)
+		byteArray.write_integer(tb.int8)
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
-		local isNilint1 = byteArray.read_uint8()
-		if isNilint1 > 0 then
-			tb.int1 = integer()
-			tb.int1.decode(byteArray)
-		else
-			tb.int1 = {}
-		end
-		local isNilint2 = byteArray.read_uint8()
-		if isNilint2 > 0 then
-			tb.int2 = integer()
-			tb.int2.decode(byteArray)
-		else
-			tb.int2 = {}
-		end
-		local isNilint3 = byteArray.read_uint8()
-		if isNilint3 > 0 then
-			tb.int3 = integer()
-			tb.int3.decode(byteArray)
-		else
-			tb.int3 = {}
-		end
-		local isNilint4 = byteArray.read_uint8()
-		if isNilint4 > 0 then
-			tb.int4 = integer()
-			tb.int4.decode(byteArray)
-		else
-			tb.int4 = {}
-		end
-		local isNilint5 = byteArray.read_uint8()
-		if isNilint5 > 0 then
-			tb.int5 = integer()
-			tb.int5.decode(byteArray)
-		else
-			tb.int5 = {}
-		end
-		local isNilint6 = byteArray.read_uint8()
-		if isNilint6 > 0 then
-			tb.int6 = integer()
-			tb.int6.decode(byteArray)
-		else
-			tb.int6 = {}
-		end
-		local isNilint7 = byteArray.read_uint8()
-		if isNilint7 > 0 then
-			tb.int7 = integer()
-			tb.int7.decode(byteArray)
-		else
-			tb.int7 = {}
-		end
-		local isNilint8 = byteArray.read_uint8()
-		if isNilint8 > 0 then
-			tb.int8 = integer()
-			tb.int8.decode(byteArray)
-		else
-			tb.int8 = {}
-		end
+		tb.int1 = byteArray.read_integer()
+		tb.int2 = byteArray.read_integer()
+		tb.int3 = byteArray.read_integer()
+		tb.int4 = byteArray.read_integer()
+		tb.int5 = byteArray.read_integer()
+		tb.int6 = byteArray.read_integer()
+		tb.int7 = byteArray.read_integer()
+		tb.int8 = byteArray.read_integer()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(15)
 		return tb.encode(byteArray)
 	end
@@ -544,155 +471,46 @@ end
 function tnumber()
 	local tb = {}
 	tb.msgId =16
-	t.int1 = {}
-	t.int2 = {}
-	t.int3 = {}
-	t.int4 = {}
-	t.int5 = {}
-	t.int6 = {}
-	t.int7 = {}
-	t.int8 = {}
-	t.float1 = {}
-	t.float2 = {}
+	t.int1 = 0
+	t.int2 = 0
+	t.int3 = 0
+	t.int4 = 0
+	t.int5 = 0
+	t.int6 = 0
+	t.int7 = 0
+	t.int8 = 0
+	t.float1 = 0
+	t.float2 = 0
 
 	tb.encode = function(byteArray)
-		if tb.int1 and next(tb.int1) then
-			byteArray.write_uint8(1)
-			tb.int1.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int2 and next(tb.int2) then
-			byteArray.write_uint8(1)
-			tb.int2.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int3 and next(tb.int3) then
-			byteArray.write_uint8(1)
-			tb.int3.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int4 and next(tb.int4) then
-			byteArray.write_uint8(1)
-			tb.int4.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int5 and next(tb.int5) then
-			byteArray.write_uint8(1)
-			tb.int5.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int6 and next(tb.int6) then
-			byteArray.write_uint8(1)
-			tb.int6.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int7 and next(tb.int7) then
-			byteArray.write_uint8(1)
-			tb.int7.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.int8 and next(tb.int8) then
-			byteArray.write_uint8(1)
-			tb.int8.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.float1 and next(tb.float1) then
-			byteArray.write_uint8(1)
-			tb.float1.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.float2 and next(tb.float2) then
-			byteArray.write_uint8(1)
-			tb.float2.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		return byteArray
+		byteArray.write_number(tb.int1)
+		byteArray.write_number(tb.int2)
+		byteArray.write_number(tb.int3)
+		byteArray.write_number(tb.int4)
+		byteArray.write_number(tb.int5)
+		byteArray.write_number(tb.int6)
+		byteArray.write_number(tb.int7)
+		byteArray.write_number(tb.int8)
+		byteArray.write_number(tb.float1)
+		byteArray.write_number(tb.float2)
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
-		local isNilint1 = byteArray.read_uint8()
-		if isNilint1 > 0 then
-			tb.int1 = number()
-			tb.int1.decode(byteArray)
-		else
-			tb.int1 = {}
-		end
-		local isNilint2 = byteArray.read_uint8()
-		if isNilint2 > 0 then
-			tb.int2 = number()
-			tb.int2.decode(byteArray)
-		else
-			tb.int2 = {}
-		end
-		local isNilint3 = byteArray.read_uint8()
-		if isNilint3 > 0 then
-			tb.int3 = number()
-			tb.int3.decode(byteArray)
-		else
-			tb.int3 = {}
-		end
-		local isNilint4 = byteArray.read_uint8()
-		if isNilint4 > 0 then
-			tb.int4 = number()
-			tb.int4.decode(byteArray)
-		else
-			tb.int4 = {}
-		end
-		local isNilint5 = byteArray.read_uint8()
-		if isNilint5 > 0 then
-			tb.int5 = number()
-			tb.int5.decode(byteArray)
-		else
-			tb.int5 = {}
-		end
-		local isNilint6 = byteArray.read_uint8()
-		if isNilint6 > 0 then
-			tb.int6 = number()
-			tb.int6.decode(byteArray)
-		else
-			tb.int6 = {}
-		end
-		local isNilint7 = byteArray.read_uint8()
-		if isNilint7 > 0 then
-			tb.int7 = number()
-			tb.int7.decode(byteArray)
-		else
-			tb.int7 = {}
-		end
-		local isNilint8 = byteArray.read_uint8()
-		if isNilint8 > 0 then
-			tb.int8 = number()
-			tb.int8.decode(byteArray)
-		else
-			tb.int8 = {}
-		end
-		local isNilfloat1 = byteArray.read_uint8()
-		if isNilfloat1 > 0 then
-			tb.float1 = number()
-			tb.float1.decode(byteArray)
-		else
-			tb.float1 = {}
-		end
-		local isNilfloat2 = byteArray.read_uint8()
-		if isNilfloat2 > 0 then
-			tb.float2 = number()
-			tb.float2.decode(byteArray)
-		else
-			tb.float2 = {}
-		end
+		tb.int1 = byteArray.read_number()
+		tb.int2 = byteArray.read_number()
+		tb.int3 = byteArray.read_number()
+		tb.int4 = byteArray.read_number()
+		tb.int5 = byteArray.read_number()
+		tb.int6 = byteArray.read_number()
+		tb.int7 = byteArray.read_number()
+		tb.int8 = byteArray.read_number()
+		tb.float1 = byteArray.read_number()
+		tb.float2 = byteArray.read_number()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(16)
 		return tb.encode(byteArray)
 	end
@@ -709,7 +527,7 @@ function tfloat()
 	tb.encode = function(byteArray)
 		byteArray.write_float(tb.int1)
 		byteArray.write_float(tb.int2)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -718,6 +536,7 @@ function tfloat()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(17)
 		return tb.encode(byteArray)
 	end
@@ -734,7 +553,7 @@ function tdouble()
 	tb.encode = function(byteArray)
 		byteArray.write_double(tb.int1)
 		byteArray.write_double(tb.int2)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -743,6 +562,7 @@ function tdouble()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(18)
 		return tb.encode(byteArray)
 	end
@@ -759,7 +579,7 @@ function tstring()
 	tb.encode = function(byteArray)
 		byteArray.write_string(tb.int1)
 		byteArray.write_string(tb.int2)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -768,6 +588,7 @@ function tstring()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(19)
 		return tb.encode(byteArray)
 	end
@@ -785,7 +606,7 @@ function tlistbool()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_bool(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -797,6 +618,7 @@ function tlistbool()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(20)
 		return tb.encode(byteArray)
 	end
@@ -814,7 +636,7 @@ function tlistint8()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_int8(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -826,6 +648,7 @@ function tlistint8()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(21)
 		return tb.encode(byteArray)
 	end
@@ -843,7 +666,7 @@ function tlistuint8()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_uint8(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -855,6 +678,7 @@ function tlistuint8()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(22)
 		return tb.encode(byteArray)
 	end
@@ -872,7 +696,7 @@ function tlistint16()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_int16(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -884,6 +708,7 @@ function tlistint16()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(23)
 		return tb.encode(byteArray)
 	end
@@ -901,7 +726,7 @@ function tlistuint16()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_uint16(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -913,6 +738,7 @@ function tlistuint16()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(24)
 		return tb.encode(byteArray)
 	end
@@ -930,7 +756,7 @@ function tlistint32()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_int32(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -942,6 +768,7 @@ function tlistint32()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(25)
 		return tb.encode(byteArray)
 	end
@@ -959,7 +786,7 @@ function tlistuint32()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_uint32(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -971,6 +798,7 @@ function tlistuint32()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(26)
 		return tb.encode(byteArray)
 	end
@@ -988,7 +816,7 @@ function tlistint64()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_int64(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -1000,6 +828,7 @@ function tlistint64()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(27)
 		return tb.encode(byteArray)
 	end
@@ -1017,7 +846,7 @@ function tlistuint64()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_uint64(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -1029,6 +858,7 @@ function tlistuint64()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(28)
 		return tb.encode(byteArray)
 	end
@@ -1043,23 +873,22 @@ function tlistinteger()
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
-		for k, v in pairs(tb.int1) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.int1) do
+			byteArray.write_integer(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
 		local cntOfint1 = byteArray.read_uint16()
 		tb.int1 = {}
 		for i = 1, cntOfint1 do
-			local temp = integer()
-			temp.decode(byteArray)
-			table.insert(tb.int1, temp)
+			table.insert(tb.int1, byteArray.read_integer())
 		end
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(29)
 		return tb.encode(byteArray)
 	end
@@ -1074,23 +903,22 @@ function tlistnumber()
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
-		for k, v in pairs(tb.int1) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.int1) do
+			byteArray.write_number(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
 		local cntOfint1 = byteArray.read_uint16()
 		tb.int1 = {}
 		for i = 1, cntOfint1 do
-			local temp = number()
-			temp.decode(byteArray)
-			table.insert(tb.int1, temp)
+			table.insert(tb.int1, byteArray.read_number())
 		end
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(30)
 		return tb.encode(byteArray)
 	end
@@ -1108,7 +936,7 @@ function tlistfloat()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_float(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -1120,6 +948,7 @@ function tlistfloat()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(31)
 		return tb.encode(byteArray)
 	end
@@ -1137,7 +966,7 @@ function tlistdouble()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_double(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -1149,6 +978,7 @@ function tlistdouble()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(32)
 		return tb.encode(byteArray)
 	end
@@ -1166,7 +996,7 @@ function tliststring()
 		for k, v in pairs (tb.int1) do
 			byteArray.write_string(v)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -1178,6 +1008,7 @@ function tliststring()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(33)
 		return tb.encode(byteArray)
 	end
@@ -1195,7 +1026,7 @@ function tlistunion()
 		for k, v in pairs(tb.int1) do
 			byteArray = v.encode(byteArray)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -1209,6 +1040,7 @@ function tlistunion()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(34)
 		return tb.encode(byteArray)
 	end
@@ -1228,24 +1060,24 @@ function allType()
 	t.uint32 = 0
 	t.int64 = 0
 	t.uint64 = 0
-	t.inte8 = {}
-	t.uinte8 = {}
-	t.inte16 = {}
-	t.uinte16 = {}
-	t.inte32 = {}
-	t.uinte32 = {}
-	t.inte64 = {}
-	t.uinte64 = {}
-	t.num8 = {}
-	t.unum8 = {}
-	t.num16 = {}
-	t.unum16 = {}
-	t.num32 = {}
-	t.unum32 = {}
-	t.num64 = {}
-	t.unum64 = {}
-	t.numfloat = {}
-	t.numdouble = {}
+	t.inte8 = 0
+	t.uinte8 = 0
+	t.inte16 = 0
+	t.uinte16 = 0
+	t.inte32 = 0
+	t.uinte32 = 0
+	t.inte64 = 0
+	t.uinte64 = 0
+	t.num8 = 0
+	t.unum8 = 0
+	t.num16 = 0
+	t.unum16 = 0
+	t.num32 = 0
+	t.unum32 = 0
+	t.num64 = 0
+	t.unum64 = 0
+	t.numfloat = 0
+	t.numdouble = 0
 	t.float = 0
 	t.double = 0
 	t.string1 = ""
@@ -1285,114 +1117,24 @@ function allType()
 		byteArray.write_uint32(tb.uint32)
 		byteArray.write_int64(tb.int64)
 		byteArray.write_uint64(tb.uint64)
-		if tb.inte8 and next(tb.inte8) then
-			byteArray.write_uint8(1)
-			tb.inte8.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.uinte8 and next(tb.uinte8) then
-			byteArray.write_uint8(1)
-			tb.uinte8.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.inte16 and next(tb.inte16) then
-			byteArray.write_uint8(1)
-			tb.inte16.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.uinte16 and next(tb.uinte16) then
-			byteArray.write_uint8(1)
-			tb.uinte16.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.inte32 and next(tb.inte32) then
-			byteArray.write_uint8(1)
-			tb.inte32.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.uinte32 and next(tb.uinte32) then
-			byteArray.write_uint8(1)
-			tb.uinte32.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.inte64 and next(tb.inte64) then
-			byteArray.write_uint8(1)
-			tb.inte64.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.uinte64 and next(tb.uinte64) then
-			byteArray.write_uint8(1)
-			tb.uinte64.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.num8 and next(tb.num8) then
-			byteArray.write_uint8(1)
-			tb.num8.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.unum8 and next(tb.unum8) then
-			byteArray.write_uint8(1)
-			tb.unum8.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.num16 and next(tb.num16) then
-			byteArray.write_uint8(1)
-			tb.num16.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.unum16 and next(tb.unum16) then
-			byteArray.write_uint8(1)
-			tb.unum16.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.num32 and next(tb.num32) then
-			byteArray.write_uint8(1)
-			tb.num32.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.unum32 and next(tb.unum32) then
-			byteArray.write_uint8(1)
-			tb.unum32.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.num64 and next(tb.num64) then
-			byteArray.write_uint8(1)
-			tb.num64.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.unum64 and next(tb.unum64) then
-			byteArray.write_uint8(1)
-			tb.unum64.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.numfloat and next(tb.numfloat) then
-			byteArray.write_uint8(1)
-			tb.numfloat.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
-		if tb.numdouble and next(tb.numdouble) then
-			byteArray.write_uint8(1)
-			tb.numdouble.encode(byteArray)
-		else
-			byteArray.write_uint8(0)
-		end
+		byteArray.write_integer(tb.inte8)
+		byteArray.write_integer(tb.uinte8)
+		byteArray.write_integer(tb.inte16)
+		byteArray.write_integer(tb.uinte16)
+		byteArray.write_integer(tb.inte32)
+		byteArray.write_integer(tb.uinte32)
+		byteArray.write_integer(tb.inte64)
+		byteArray.write_integer(tb.uinte64)
+		byteArray.write_number(tb.num8)
+		byteArray.write_number(tb.unum8)
+		byteArray.write_number(tb.num16)
+		byteArray.write_number(tb.unum16)
+		byteArray.write_number(tb.num32)
+		byteArray.write_number(tb.unum32)
+		byteArray.write_number(tb.num64)
+		byteArray.write_number(tb.unum64)
+		byteArray.write_number(tb.numfloat)
+		byteArray.write_number(tb.numdouble)
 		byteArray.write_float(tb.float)
 		byteArray.write_double(tb.double)
 		byteArray.write_string(tb.string1)
@@ -1440,44 +1182,44 @@ function allType()
 			byteArray.write_uint64(v)
 		end
 		byteArray.write_uint16(#(tb.linte8))
-		for k, v in pairs(tb.linte8) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.linte8) do
+			byteArray.write_integer(v)
 		end
 		byteArray.write_uint16(#(tb.linte16))
-		for k, v in pairs(tb.linte16) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.linte16) do
+			byteArray.write_integer(v)
 		end
 		byteArray.write_uint16(#(tb.linte32))
-		for k, v in pairs(tb.linte32) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.linte32) do
+			byteArray.write_integer(v)
 		end
 		byteArray.write_uint16(#(tb.linte64))
-		for k, v in pairs(tb.linte64) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.linte64) do
+			byteArray.write_integer(v)
 		end
 		byteArray.write_uint16(#(tb.lnum8))
-		for k, v in pairs(tb.lnum8) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.lnum8) do
+			byteArray.write_number(v)
 		end
 		byteArray.write_uint16(#(tb.lnum16))
-		for k, v in pairs(tb.lnum16) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.lnum16) do
+			byteArray.write_number(v)
 		end
 		byteArray.write_uint16(#(tb.lnum32))
-		for k, v in pairs(tb.lnum32) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.lnum32) do
+			byteArray.write_number(v)
 		end
 		byteArray.write_uint16(#(tb.lnum64))
-		for k, v in pairs(tb.lnum64) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.lnum64) do
+			byteArray.write_number(v)
 		end
 		byteArray.write_uint16(#(tb.lnfloat32))
-		for k, v in pairs(tb.lnfloat32) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.lnfloat32) do
+			byteArray.write_number(v)
 		end
 		byteArray.write_uint16(#(tb.lnfloat64))
-		for k, v in pairs(tb.lnfloat64) do
-			byteArray = v.encode(byteArray)
+		for k, v in pairs (tb.lnfloat64) do
+			byteArray.write_number(v)
 		end
 		byteArray.write_uint16(#(tb.lfloat))
 		for k, v in pairs (tb.lfloat) do
@@ -1495,7 +1237,7 @@ function allType()
 		for k, v in pairs(tb.lunion) do
 			byteArray = v.encode(byteArray)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -1508,132 +1250,24 @@ function allType()
 		tb.uint32 = byteArray.read_uint32()
 		tb.int64 = byteArray.read_int64()
 		tb.uint64 = byteArray.read_uint64()
-		local isNilinte8 = byteArray.read_uint8()
-		if isNilinte8 > 0 then
-			tb.inte8 = integer()
-			tb.inte8.decode(byteArray)
-		else
-			tb.inte8 = {}
-		end
-		local isNiluinte8 = byteArray.read_uint8()
-		if isNiluinte8 > 0 then
-			tb.uinte8 = integer()
-			tb.uinte8.decode(byteArray)
-		else
-			tb.uinte8 = {}
-		end
-		local isNilinte16 = byteArray.read_uint8()
-		if isNilinte16 > 0 then
-			tb.inte16 = integer()
-			tb.inte16.decode(byteArray)
-		else
-			tb.inte16 = {}
-		end
-		local isNiluinte16 = byteArray.read_uint8()
-		if isNiluinte16 > 0 then
-			tb.uinte16 = integer()
-			tb.uinte16.decode(byteArray)
-		else
-			tb.uinte16 = {}
-		end
-		local isNilinte32 = byteArray.read_uint8()
-		if isNilinte32 > 0 then
-			tb.inte32 = integer()
-			tb.inte32.decode(byteArray)
-		else
-			tb.inte32 = {}
-		end
-		local isNiluinte32 = byteArray.read_uint8()
-		if isNiluinte32 > 0 then
-			tb.uinte32 = integer()
-			tb.uinte32.decode(byteArray)
-		else
-			tb.uinte32 = {}
-		end
-		local isNilinte64 = byteArray.read_uint8()
-		if isNilinte64 > 0 then
-			tb.inte64 = integer()
-			tb.inte64.decode(byteArray)
-		else
-			tb.inte64 = {}
-		end
-		local isNiluinte64 = byteArray.read_uint8()
-		if isNiluinte64 > 0 then
-			tb.uinte64 = integer()
-			tb.uinte64.decode(byteArray)
-		else
-			tb.uinte64 = {}
-		end
-		local isNilnum8 = byteArray.read_uint8()
-		if isNilnum8 > 0 then
-			tb.num8 = number()
-			tb.num8.decode(byteArray)
-		else
-			tb.num8 = {}
-		end
-		local isNilunum8 = byteArray.read_uint8()
-		if isNilunum8 > 0 then
-			tb.unum8 = number()
-			tb.unum8.decode(byteArray)
-		else
-			tb.unum8 = {}
-		end
-		local isNilnum16 = byteArray.read_uint8()
-		if isNilnum16 > 0 then
-			tb.num16 = number()
-			tb.num16.decode(byteArray)
-		else
-			tb.num16 = {}
-		end
-		local isNilunum16 = byteArray.read_uint8()
-		if isNilunum16 > 0 then
-			tb.unum16 = number()
-			tb.unum16.decode(byteArray)
-		else
-			tb.unum16 = {}
-		end
-		local isNilnum32 = byteArray.read_uint8()
-		if isNilnum32 > 0 then
-			tb.num32 = number()
-			tb.num32.decode(byteArray)
-		else
-			tb.num32 = {}
-		end
-		local isNilunum32 = byteArray.read_uint8()
-		if isNilunum32 > 0 then
-			tb.unum32 = number()
-			tb.unum32.decode(byteArray)
-		else
-			tb.unum32 = {}
-		end
-		local isNilnum64 = byteArray.read_uint8()
-		if isNilnum64 > 0 then
-			tb.num64 = number()
-			tb.num64.decode(byteArray)
-		else
-			tb.num64 = {}
-		end
-		local isNilunum64 = byteArray.read_uint8()
-		if isNilunum64 > 0 then
-			tb.unum64 = number()
-			tb.unum64.decode(byteArray)
-		else
-			tb.unum64 = {}
-		end
-		local isNilnumfloat = byteArray.read_uint8()
-		if isNilnumfloat > 0 then
-			tb.numfloat = number()
-			tb.numfloat.decode(byteArray)
-		else
-			tb.numfloat = {}
-		end
-		local isNilnumdouble = byteArray.read_uint8()
-		if isNilnumdouble > 0 then
-			tb.numdouble = number()
-			tb.numdouble.decode(byteArray)
-		else
-			tb.numdouble = {}
-		end
+		tb.inte8 = byteArray.read_integer()
+		tb.uinte8 = byteArray.read_integer()
+		tb.inte16 = byteArray.read_integer()
+		tb.uinte16 = byteArray.read_integer()
+		tb.inte32 = byteArray.read_integer()
+		tb.uinte32 = byteArray.read_integer()
+		tb.inte64 = byteArray.read_integer()
+		tb.uinte64 = byteArray.read_integer()
+		tb.num8 = byteArray.read_number()
+		tb.unum8 = byteArray.read_number()
+		tb.num16 = byteArray.read_number()
+		tb.unum16 = byteArray.read_number()
+		tb.num32 = byteArray.read_number()
+		tb.unum32 = byteArray.read_number()
+		tb.num64 = byteArray.read_number()
+		tb.unum64 = byteArray.read_number()
+		tb.numfloat = byteArray.read_number()
+		tb.numdouble = byteArray.read_number()
 		tb.float = byteArray.read_float()
 		tb.double = byteArray.read_double()
 		tb.string1 = byteArray.read_string()
@@ -1693,72 +1327,52 @@ function allType()
 		local cntOflinte8 = byteArray.read_uint16()
 		tb.linte8 = {}
 		for i = 1, cntOflinte8 do
-			local temp = integer()
-			temp.decode(byteArray)
-			table.insert(tb.linte8, temp)
+			table.insert(tb.linte8, byteArray.read_integer())
 		end
 		local cntOflinte16 = byteArray.read_uint16()
 		tb.linte16 = {}
 		for i = 1, cntOflinte16 do
-			local temp = integer()
-			temp.decode(byteArray)
-			table.insert(tb.linte16, temp)
+			table.insert(tb.linte16, byteArray.read_integer())
 		end
 		local cntOflinte32 = byteArray.read_uint16()
 		tb.linte32 = {}
 		for i = 1, cntOflinte32 do
-			local temp = integer()
-			temp.decode(byteArray)
-			table.insert(tb.linte32, temp)
+			table.insert(tb.linte32, byteArray.read_integer())
 		end
 		local cntOflinte64 = byteArray.read_uint16()
 		tb.linte64 = {}
 		for i = 1, cntOflinte64 do
-			local temp = integer()
-			temp.decode(byteArray)
-			table.insert(tb.linte64, temp)
+			table.insert(tb.linte64, byteArray.read_integer())
 		end
 		local cntOflnum8 = byteArray.read_uint16()
 		tb.lnum8 = {}
 		for i = 1, cntOflnum8 do
-			local temp = number()
-			temp.decode(byteArray)
-			table.insert(tb.lnum8, temp)
+			table.insert(tb.lnum8, byteArray.read_number())
 		end
 		local cntOflnum16 = byteArray.read_uint16()
 		tb.lnum16 = {}
 		for i = 1, cntOflnum16 do
-			local temp = number()
-			temp.decode(byteArray)
-			table.insert(tb.lnum16, temp)
+			table.insert(tb.lnum16, byteArray.read_number())
 		end
 		local cntOflnum32 = byteArray.read_uint16()
 		tb.lnum32 = {}
 		for i = 1, cntOflnum32 do
-			local temp = number()
-			temp.decode(byteArray)
-			table.insert(tb.lnum32, temp)
+			table.insert(tb.lnum32, byteArray.read_number())
 		end
 		local cntOflnum64 = byteArray.read_uint16()
 		tb.lnum64 = {}
 		for i = 1, cntOflnum64 do
-			local temp = number()
-			temp.decode(byteArray)
-			table.insert(tb.lnum64, temp)
+			table.insert(tb.lnum64, byteArray.read_number())
 		end
 		local cntOflnfloat32 = byteArray.read_uint16()
 		tb.lnfloat32 = {}
 		for i = 1, cntOflnfloat32 do
-			local temp = number()
-			temp.decode(byteArray)
-			table.insert(tb.lnfloat32, temp)
+			table.insert(tb.lnfloat32, byteArray.read_number())
 		end
 		local cntOflnfloat64 = byteArray.read_uint16()
 		tb.lnfloat64 = {}
 		for i = 1, cntOflnfloat64 do
-			local temp = number()
-			temp.decode(byteArray)
-			table.insert(tb.lnfloat64, temp)
+			table.insert(tb.lnfloat64, byteArray.read_number())
 		end
 		local cntOflfloat = byteArray.read_uint16()
 		tb.lfloat = {}
@@ -1785,6 +1399,7 @@ function allType()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(35)
 		return tb.encode(byteArray)
 	end
@@ -1797,13 +1412,14 @@ function testnull()
 	tb.msgId =36
 
 	tb.encode = function(byteArray)
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(36)
 		return tb.encode(byteArray)
 	end
@@ -1827,7 +1443,7 @@ function person1()
 		for k, v in pairs(tb.phone) do
 			byteArray = v.encode(byteArray)
 		end
-		return byteArray
+		return byteArray.getBytes()
 	end
 
 	tb.decode = function(byteArray)
@@ -1844,6 +1460,7 @@ function person1()
 	end
 
 	tb.build = function(byteArray)
+		byteArray.setBytes({})
 		byteArray.write_uint16(1001)
 		return tb.encode(byteArray)
 	end

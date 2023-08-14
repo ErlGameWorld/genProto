@@ -1,14 +1,30 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
+using MiscUtil.Conversion;
+using MiscUtil.IO;
 
-namespace ProtoMsg
+namespace GenProto
 {
-    public static class Protocol
+    public static class ProtocolCore
     {
+        public interface ISerialize
+        {
+            void Serialize(EndianBinaryWriter binaryWriter);
+            byte[] Serialize();
+        }
+
+        public interface IDeserialize<T>
+        {
+            void Deserialize(EndianBinaryReader binaryReader);
+            void Deserialize(byte[] data);
+        }
+
         public enum BasicTypeEnum
         {
+            Custom = 0x00,
             Boolean = 0x01,
             Int8 = 0x02,
             UInt8 = 0x03,
@@ -39,11 +55,11 @@ namespace ProtoMsg
                 float => BasicTypeEnum.Float,
                 double => BasicTypeEnum.Double,
                 string => BasicTypeEnum.String,
-                _ => throw new InvalidOperationException($"unexpect type: {value.GetType().FullName}")
+                _ => BasicTypeEnum.Custom,
             };
         }
 
-        public static void WriteValue<T>(this BinaryWriter binaryWriter, T value)
+        public static void WriteValue<T>(this EndianBinaryWriter binaryWriter, T value)
         {
             switch (value)
             {
@@ -81,46 +97,134 @@ namespace ProtoMsg
                     binaryWriter.Write(doubleValue);
                     break;
                 case string stringValue:
-                    binaryWriter.Write(stringValue);
+                    var bytesLength = (ushort)binaryWriter.Encoding.GetByteCount(stringValue);
+                    binaryWriter.Write(bytesLength);
+                    var bytes = binaryWriter.Encoding.GetBytes(stringValue);
+                    binaryWriter.Write(bytes);
                     break;
                 default:
-                    throw new InvalidOperationException($"unexpect type: {value.GetType().FullName}");
+                {
+                    switch (value)
+                    {
+                        case IList listValue:
+                            binaryWriter.WriteList(listValue);
+                            break;
+                        case ISerialize serialize:
+                            serialize.Serialize(binaryWriter);
+                            break;
+                        default:
+                            if (value != null)
+                            {
+                                throw new InvalidOperationException($"unexpect type: {value.GetType().FullName}");
+                            }
+
+                            break;
+                    }
+                    break;
+                }
             }
         }
 
 
-        public static void WriteList<T>(this BinaryWriter binaryWriter, IList<T> list)
+        public static void WriteList(this EndianBinaryWriter binaryWriter, IList list)
         {
-            var length = (ushort) (list?.Count ?? 0);
+            var length = (ushort)(list?.Count ?? 0);
             binaryWriter.Write(length);
 
             if (list == null) return;
             for (var idx = 0; idx < length; idx++)
             {
                 var value = list[idx];
-
-                if (idx == 0)
-                {
-                    var basicType = JudgeType(value);
-                    binaryWriter.Write((byte) basicType);
-                }
-
                 binaryWriter.WriteValue(value);
             }
         }
 
-        public static void ReadList(this BinaryReader binaryReader, out IList list)
+        public static void ReadValue(this EndianBinaryReader binaryReader, out bool value)
         {
+            value = binaryReader.ReadBoolean();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out sbyte value)
+        {
+            value = binaryReader.ReadSByte();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out byte value)
+        {
+            value = binaryReader.ReadByte();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out ushort value)
+        {
+            value = binaryReader.ReadUInt16();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out short value)
+        {
+            value = binaryReader.ReadInt16();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out int value)
+        {
+            value = binaryReader.ReadInt32();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out uint value)
+        {
+            value = binaryReader.ReadUInt32();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out long value)
+        {
+            value = binaryReader.ReadInt64();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out ulong value)
+        {
+            value = binaryReader.ReadUInt64();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out float value)
+        {
+            value = binaryReader.ReadSingle();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out double value)
+        {
+            value = binaryReader.ReadDouble();
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out string value)
+        {
+            var bytesLength = binaryReader.ReadUInt16();
+            var bytes = binaryReader.ReadBytes(bytesLength);
+            value = binaryReader.Encoding.GetString(bytes, 0, bytes.Length);
+        }
+
+        public static void ReadValue<T>(this EndianBinaryReader binaryReader, out T value) where T : new()
+        {
+            value = default;
+            value = new T();
+            if (value is not IDeserialize<T> deserialize)
+            {
+                throw new InvalidOperationException($"error type: {typeof(T).FullName}");
+            }
+
+            deserialize.Deserialize(binaryReader);
+        }
+
+        public static void ReadValue<T>(this EndianBinaryReader binaryReader, out List<T> outList, BasicTypeEnum basicTypeEnum) where T : new()
+        {
+            outList = default;
+            IList list = default;
+
             var length = binaryReader.ReadUInt16();
             if (length <= 0)
             {
-                list = default;
                 return;
             }
 
-            list = default;
-            var basicTypeEnum = (BasicTypeEnum) binaryReader.ReadByte();
-            for (int idx = 0; idx < length; idx++)
+            for (var idx = 0; idx < length; idx++)
             {
                 switch (basicTypeEnum)
                 {
@@ -184,25 +288,20 @@ namespace ProtoMsg
                         var stringValue = binaryReader.ReadString();
                         list.Add(stringValue);
                         break;
+                    case BasicTypeEnum.Custom:
+                        list ??= new List<T>(length);
+                        if (new T() is IDeserialize<T> item)
+                            {
+                                item.Deserialize(binaryReader);
+                                list.Add(item);
+                            }
+                        break;
                     default:
-                        throw new ArgumentOutOfRangeException();
+                        throw new InvalidOperationException();
                 }
             }
+
+            outList = list as List<T>;
         }
     }
 }
-
-        public byte[] Serialize()
-        {
-            using var memoryStream = new MemoryStream();
-            using var binaryWriter = new BinaryWriter(memoryStream);
-            Serialize(binaryWriter);
-            return memoryStream.ToArray();
-        }
-
-        public void Deserialize(byte[] data)
-        {
-            using var memoryStream = new MemoryStream(data);
-            using var binaryReader = new BinaryReader(memoryStream);
-            Deserialize(binaryReader);
-        }

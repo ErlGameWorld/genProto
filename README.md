@@ -12,7 +12,8 @@ Use
 -----
 
     rebar3 escriptize生成的genProto genPtoto.cmd 在_build/default/bin下面 将其复制到可以被搜索的执行路径或者工作目录
-    genProto ProtoInputDir HrlOutDir ErlOutDir
+    genProto ProtoInputDir Lang("erl", "lua", "cs") OutDir(erl 存在两个输出目录 头文件和Erl文件的输出目录 lua和cs只有一个输入目录)
+    eg: genProto:convertDir(["./proto", "erl", "./test/erl/", "./test/erl/", "lua", "./test/lua/", "cs", "./test/cs/"]).
 
 # 简单描述
 
@@ -21,9 +22,9 @@ Use
 
 # 支持的数据类型
 
-    erl: int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer(整数 64位) number(整数或者浮点数 64位) string float(32位浮点数) double(64位浮点数) bool record(struct) 以及上面类型的列表
-    lua(待修正): int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer(整数 64位) number(整数或者浮点数 64位) string float(32位浮点数) double(64位浮点数) bool record 以及上面类型的列表
-    c#(待修正): int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer(整数 64位) number(整数或者浮点数 64位) string float(32位浮点数) double(64位浮点数) bool record 以及上面类型的列表
+    erl: int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer number(整数或者浮点数) string float(32位浮点数) double(64位浮点数) bool record(struct) 以及上面类型的列表
+    lua: int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer number(整数或者浮点数) string float(32位浮点数) double(64位浮点数) bool record 以及上面类型的列表
+    c#: int8 uint8 int16 uint16 int32 uint32 int64 uint64 string float(32位浮点数) double(64位浮点数) bool record 以及上面类型的列表
 
 # 各种数据类型的编码格式(字节序大端存储， string用utf8编码)
 
@@ -43,9 +44,6 @@ Use
     bool：               占位8bit 如果为true 则存放的值为1 否则存放的值为0
     record(struct)：     如果是undefined 或者是空指针 则 8bit Tag 值为0, 否则 8bit的tag 值为1 + record的二进制数据
     list_+上面的数据类型的时候： 16bit的tag 用于存放 数组的长度 + 按数组顺序序列化每个元素的值的二进制数据(注意：如果列表类型为record(struct) 每个值序列化的时候并不会加 8bit的tag, 直接存record的二进制数据)
-
-### maybe TODO
-    lua 支持 integer number
 
 ### 关于消息接收转发解码和发送
 
@@ -218,7 +216,3 @@ Use
               49,50,51,52,53,54,55,...>>
             67> byte_size(BAddr). 
             83
-
-    
-
-    
