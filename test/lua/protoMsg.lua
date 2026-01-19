@@ -1,7 +1,7 @@
 function test()
 	local tb = {}
 	tb.msgId =1
-	t.aa = ""
+	tb.aa = ""
 
 	tb.encode = function(byteArray)
 		byteArray.write_string(tb.aa)
@@ -24,8 +24,8 @@ end
 function phoneNumber()
 	local tb = {}
 	tb.msgId =2
-	t.number = {}
-	t.type = 0
+	tb.number = {}
+	tb.type = 0
 
 	tb.encode = function(byteArray)
 		if tb.number and next(tb.number) then
@@ -61,10 +61,10 @@ end
 function person()
 	local tb = {}
 	tb.msgId =3
-	t.name = ""
-	t.id = 0
-	t.email = ""
-	t.phone = {}
+	tb.name = ""
+	tb.id = 0
+	tb.email = ""
+	tb.phone = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_string(tb.name)
@@ -102,8 +102,8 @@ end
 function addressBook()
 	local tb = {}
 	tb.msgId =4
-	t.person = {}
-	t.other = {}
+	tb.person = {}
+	tb.other = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.person))
@@ -146,8 +146,8 @@ end
 function union()
 	local tb = {}
 	tb.msgId =5
-	t.test = ""
-	t.type = 0
+	tb.test = ""
+	tb.type = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_string(tb.test)
@@ -172,7 +172,7 @@ end
 function tbool()
 	local tb = {}
 	tb.msgId =6
-	t.bool = false
+	tb.bool = false
 
 	tb.encode = function(byteArray)
 		byteArray.write_bool(tb.bool)
@@ -195,8 +195,8 @@ end
 function tint8()
 	local tb = {}
 	tb.msgId =7
-	t.int1 = 0
-	t.int2 = 0
+	tb.int1 = 0
+	tb.int2 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_int8(tb.int1)
@@ -221,8 +221,8 @@ end
 function tuint8()
 	local tb = {}
 	tb.msgId =8
-	t.int1 = 0
-	t.int2 = 0
+	tb.int1 = 0
+	tb.int2 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint8(tb.int1)
@@ -247,8 +247,8 @@ end
 function tint16()
 	local tb = {}
 	tb.msgId =9
-	t.int1 = 0
-	t.int2 = 0
+	tb.int1 = 0
+	tb.int2 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_int16(tb.int1)
@@ -273,8 +273,8 @@ end
 function tuint16()
 	local tb = {}
 	tb.msgId =10
-	t.int1 = 0
-	t.int2 = 0
+	tb.int1 = 0
+	tb.int2 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(tb.int1)
@@ -299,16 +299,16 @@ end
 function tint32()
 	local tb = {}
 	tb.msgId =11
-	t.int1 = 0
-	t.int2 = 0
-	t.int3 = 0
-	t.int4 = 0
-	t.int5 = 0
-	t.int6 = 0
-	t.int7 = 0
-	t.int8 = 0
-	t.int9 = 0
-	t.int10 = 0
+	tb.int1 = 0
+	tb.int2 = 0
+	tb.int3 = 0
+	tb.int4 = 0
+	tb.int5 = 0
+	tb.int6 = 0
+	tb.int7 = 0
+	tb.int8 = 0
+	tb.int9 = 0
+	tb.int10 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_int32(tb.int1)
@@ -349,8 +349,8 @@ end
 function tuint32()
 	local tb = {}
 	tb.msgId =12
-	t.int1 = 0
-	t.int2 = 0
+	tb.int1 = 0
+	tb.int2 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint32(tb.int1)
@@ -375,8 +375,8 @@ end
 function tint64()
 	local tb = {}
 	tb.msgId =13
-	t.int1 = 0
-	t.int2 = 0
+	tb.int1 = 0
+	tb.int2 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_int64(tb.int1)
@@ -401,8 +401,8 @@ end
 function tuint64()
 	local tb = {}
 	tb.msgId =14
-	t.int1 = 0
-	t.int2 = 0
+	tb.int1 = 0
+	tb.int2 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint64(tb.int1)
@@ -427,14 +427,14 @@ end
 function tinteger()
 	local tb = {}
 	tb.msgId =15
-	t.int1 = 0
-	t.int2 = 0
-	t.int3 = 0
-	t.int4 = 0
-	t.int5 = 0
-	t.int6 = 0
-	t.int7 = 0
-	t.int8 = 0
+	tb.int1 = 0
+	tb.int2 = 0
+	tb.int3 = 0
+	tb.int4 = 0
+	tb.int5 = 0
+	tb.int6 = 0
+	tb.int7 = 0
+	tb.int8 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_integer(tb.int1)
@@ -471,16 +471,16 @@ end
 function tnumber()
 	local tb = {}
 	tb.msgId =16
-	t.int1 = 0
-	t.int2 = 0
-	t.int3 = 0
-	t.int4 = 0
-	t.int5 = 0
-	t.int6 = 0
-	t.int7 = 0
-	t.int8 = 0
-	t.float1 = 0
-	t.float2 = 0
+	tb.int1 = 0
+	tb.int2 = 0
+	tb.int3 = 0
+	tb.int4 = 0
+	tb.int5 = 0
+	tb.int6 = 0
+	tb.int7 = 0
+	tb.int8 = 0
+	tb.float1 = 0
+	tb.float2 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_number(tb.int1)
@@ -521,8 +521,8 @@ end
 function tfloat()
 	local tb = {}
 	tb.msgId =17
-	t.int1 = 0
-	t.int2 = 0
+	tb.int1 = 0
+	tb.int2 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_float(tb.int1)
@@ -547,8 +547,8 @@ end
 function tdouble()
 	local tb = {}
 	tb.msgId =18
-	t.int1 = 0
-	t.int2 = 0
+	tb.int1 = 0
+	tb.int2 = 0
 
 	tb.encode = function(byteArray)
 		byteArray.write_double(tb.int1)
@@ -573,8 +573,8 @@ end
 function tstring()
 	local tb = {}
 	tb.msgId =19
-	t.int1 = ""
-	t.int2 = ""
+	tb.int1 = ""
+	tb.int2 = ""
 
 	tb.encode = function(byteArray)
 		byteArray.write_string(tb.int1)
@@ -599,7 +599,7 @@ end
 function tlistbool()
 	local tb = {}
 	tb.msgId =20
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -629,7 +629,7 @@ end
 function tlistint8()
 	local tb = {}
 	tb.msgId =21
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -659,7 +659,7 @@ end
 function tlistuint8()
 	local tb = {}
 	tb.msgId =22
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -689,7 +689,7 @@ end
 function tlistint16()
 	local tb = {}
 	tb.msgId =23
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -719,7 +719,7 @@ end
 function tlistuint16()
 	local tb = {}
 	tb.msgId =24
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -749,7 +749,7 @@ end
 function tlistint32()
 	local tb = {}
 	tb.msgId =25
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -779,7 +779,7 @@ end
 function tlistuint32()
 	local tb = {}
 	tb.msgId =26
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -809,7 +809,7 @@ end
 function tlistint64()
 	local tb = {}
 	tb.msgId =27
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -839,7 +839,7 @@ end
 function tlistuint64()
 	local tb = {}
 	tb.msgId =28
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -869,7 +869,7 @@ end
 function tlistinteger()
 	local tb = {}
 	tb.msgId =29
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -899,7 +899,7 @@ end
 function tlistnumber()
 	local tb = {}
 	tb.msgId =30
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -929,7 +929,7 @@ end
 function tlistfloat()
 	local tb = {}
 	tb.msgId =31
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -959,7 +959,7 @@ end
 function tlistdouble()
 	local tb = {}
 	tb.msgId =32
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -989,7 +989,7 @@ end
 function tliststring()
 	local tb = {}
 	tb.msgId =33
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -1019,7 +1019,7 @@ end
 function tlistunion()
 	local tb = {}
 	tb.msgId =34
-	t.int1 = {}
+	tb.int1 = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_uint16(#(tb.int1))
@@ -1051,61 +1051,61 @@ end
 function allType()
 	local tb = {}
 	tb.msgId =35
-	t.bool = false
-	t.int8 = 0
-	t.uint8 = 0
-	t.int16 = 0
-	t.uint16 = 0
-	t.int32 = 0
-	t.uint32 = 0
-	t.int64 = 0
-	t.uint64 = 0
-	t.inte8 = 0
-	t.uinte8 = 0
-	t.inte16 = 0
-	t.uinte16 = 0
-	t.inte32 = 0
-	t.uinte32 = 0
-	t.inte64 = 0
-	t.uinte64 = 0
-	t.num8 = 0
-	t.unum8 = 0
-	t.num16 = 0
-	t.unum16 = 0
-	t.num32 = 0
-	t.unum32 = 0
-	t.num64 = 0
-	t.unum64 = 0
-	t.numfloat = 0
-	t.numdouble = 0
-	t.float = 0
-	t.double = 0
-	t.string1 = ""
-	t.string2 = ""
-	t.union = {}
-	t.lbool = {}
-	t.lint8 = {}
-	t.luint8 = {}
-	t.lint16 = {}
-	t.luint16 = {}
-	t.lint32 = {}
-	t.luint32 = {}
-	t.lint64 = {}
-	t.luint64 = {}
-	t.linte8 = {}
-	t.linte16 = {}
-	t.linte32 = {}
-	t.linte64 = {}
-	t.lnum8 = {}
-	t.lnum16 = {}
-	t.lnum32 = {}
-	t.lnum64 = {}
-	t.lnfloat32 = {}
-	t.lnfloat64 = {}
-	t.lfloat = {}
-	t.ldouble = {}
-	t.lstring = {}
-	t.lunion = {}
+	tb.bool = false
+	tb.int8 = 0
+	tb.uint8 = 0
+	tb.int16 = 0
+	tb.uint16 = 0
+	tb.int32 = 0
+	tb.uint32 = 0
+	tb.int64 = 0
+	tb.uint64 = 0
+	tb.inte8 = 0
+	tb.uinte8 = 0
+	tb.inte16 = 0
+	tb.uinte16 = 0
+	tb.inte32 = 0
+	tb.uinte32 = 0
+	tb.inte64 = 0
+	tb.uinte64 = 0
+	tb.num8 = 0
+	tb.unum8 = 0
+	tb.num16 = 0
+	tb.unum16 = 0
+	tb.num32 = 0
+	tb.unum32 = 0
+	tb.num64 = 0
+	tb.unum64 = 0
+	tb.numfloat = 0
+	tb.numdouble = 0
+	tb.float = 0
+	tb.double = 0
+	tb.string1 = ""
+	tb.string2 = ""
+	tb.union = {}
+	tb.lbool = {}
+	tb.lint8 = {}
+	tb.luint8 = {}
+	tb.lint16 = {}
+	tb.luint16 = {}
+	tb.lint32 = {}
+	tb.luint32 = {}
+	tb.lint64 = {}
+	tb.luint64 = {}
+	tb.linte8 = {}
+	tb.linte16 = {}
+	tb.linte32 = {}
+	tb.linte64 = {}
+	tb.lnum8 = {}
+	tb.lnum16 = {}
+	tb.lnum32 = {}
+	tb.lnum64 = {}
+	tb.lnfloat32 = {}
+	tb.lnfloat64 = {}
+	tb.lfloat = {}
+	tb.ldouble = {}
+	tb.lstring = {}
+	tb.lunion = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_bool(tb.bool)
@@ -1430,10 +1430,10 @@ end
 function person1()
 	local tb = {}
 	tb.msgId =1001
-	t.name = ""
-	t.id = 0
-	t.email = ""
-	t.phone = {}
+	tb.name = ""
+	tb.id = 0
+	tb.email = ""
+	tb.phone = {}
 
 	tb.encode = function(byteArray)
 		byteArray.write_string(tb.name)

@@ -128,7 +128,7 @@ parseParse(Input) when is_binary(Input) ->
          Desc = iolist_to_binary(ErrCodeStrList),
          ErrList = erlang:get(pd_errlist),
          UpErrName = toUpperStr(ErrName),
-         case UpErrName =/= [] andalso lists:keyfind(UpErrName, 1, ErrList) == false of
+         case UpErrName =/= <<>> andalso UpErrName =/= [] andalso UpErrName =/= "" andalso lists:keyfind(UpErrName, 1, ErrList) == false of
             true ->
                ErrCodeId = erlang:get(pd_errcodeid),
                erlang:put(pd_errlist, [{UpErrName, ErrCodeId, Desc} | ErrList]),

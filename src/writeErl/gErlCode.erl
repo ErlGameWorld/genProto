@@ -32,26 +32,35 @@
 -define(double(V), <<V:64/big-float>>).
 -define(bool(V), (case V of true -> <<1:8>>; _ -> <<0:8>> end)).
 -define(record(V), (case V of undefined -> [<<0:8>>]; V -> [<<1:8>>, subEncode(V)] end)).
--define(list_bool(List), [<<(length(List)):16/big>>, [?bool(V) || V <- List]]).
--define(list_int8(List), [<<(length(List)):16/big>>, [?int8(V) || V <- List]]).
--define(list_uint8(List), [<<(length(List)):16/big>>, [?uint8(V) || V <- List]]).
--define(list_int16(List), [<<(length(List)):16/big>>, [?int16(V) || V <- List]]).
--define(list_uint16(List), [<<(length(List)):16/big>>, [?uint16(V) || V <- List]]).
--define(list_int32(List), [<<(length(List)):16/big>>, [?int32(V) || V <- List]]).
--define(list_uint32(List), [<<(length(List)):16/big>>, [?uint32(V) || V <- List]]).
--define(list_int64(List), [<<(length(List)):16/big>>, [?int64(V) || V <- List]]).
--define(list_uint64(List), [<<(length(List)):16/big>>, [?uint64(V) || V <- List]]).
--define(list_float(List), [<<(length(List)):16/big>>, [?float(V) || V <- List]]).
--define(list_double(List), [<<(length(List)):16/big>>, [?double(V) || V <- List]]).
--define(list_integer(List), [<<(length(List)):16/big>>, [integer(V) || V <- List]]).
--define(list_number(List), [<<(length(List)):16/big>>, [number(V) || V <- List]]).
--define(list_string(List), [<<(length(List)):16/big>>, [string(V) || V <- List]]).
--define(list_record(List), [<<(length(List)):16/big>>, [subEncode(V) || V <- List]]).
+-define(list_bool(List), [<<(listLen(List)):16/big>>, [?bool(V) || V <- List]]).
+-define(list_int8(List), [<<(listLen(List)):16/big>>, [?int8(V) || V <- List]]).
+-define(list_uint8(List), [<<(listLen(List)):16/big>>, [?uint8(V) || V <- List]]).
+-define(list_int16(List), [<<(listLen(List)):16/big>>, [?int16(V) || V <- List]]).
+-define(list_uint16(List), [<<(listLen(List)):16/big>>, [?uint16(V) || V <- List]]).
+-define(list_int32(List), [<<(listLen(List)):16/big>>, [?int32(V) || V <- List]]).
+-define(list_uint32(List), [<<(listLen(List)):16/big>>, [?uint32(V) || V <- List]]).
+-define(list_int64(List), [<<(listLen(List)):16/big>>, [?int64(V) || V <- List]]).
+-define(list_uint64(List), [<<(listLen(List)):16/big>>, [?uint64(V) || V <- List]]).
+-define(list_float(List), [<<(listLen(List)):16/big>>, [?float(V) || V <- List]]).
+-define(list_double(List), [<<(listLen(List)):16/big>>, [?double(V) || V <- List]]).
+-define(list_integer(List), [<<(listLen(List)):16/big>>, [integer(V) || V <- List]]).
+-define(list_number(List), [<<(listLen(List)):16/big>>, [number(V) || V <- List]]).
+-define(list_string(List), [<<(listLen(List)):16/big>>, [string(V) || V <- List]]).
+-define(list_record(List), [<<(listLen(List)):16/big>>, [subEncode(V) || V <- List]]).
+
+listLen(List) ->
+   Len = length(List),
+   case Len > 65535 of
+      true ->
+         throw({list_too_long, Len, List});
+      _ ->
+         Len
+   end.
 
 -define(BinaryShareSize, 65).        %% binary 大于64时 binary和sub就会share
 -define(BinaryCopyRatio, 1.2).       %% 当总binary的Sise / Sub binary size > 1.2 就重新复制一个
 
-integer(V) ->
+integer(V) when is_integer(V) ->
    if
       V >= ?min8 andalso V =< ?max8 ->
          <<8:8, <<V:8>>/binary>>;
@@ -62,8 +71,10 @@ integer(V) ->
       V >= ?min64 andalso V =< ?max64 ->
          <<64:8, <<V:64/big>>/binary>>;
       true ->
-         throw(exceeded_the_integer)
-   end.
+         throw({exceeded_the_integer, V})
+   end;
+integer(V) ->
+   throw({not_an_integer, V}).
 
 number(V) ->
    if
@@ -78,7 +89,7 @@ number(V) ->
             V >= ?min64 andalso V =< ?max64 ->
                <<64:8, <<V:64/big>>/binary>>;
             true ->
-               throw(exceeded_the_integer)
+               throw({exceeded_the_integer, V})
          end;
       erlang:is_float(V) ->
          if
@@ -87,17 +98,35 @@ number(V) ->
             V >= ?minF64 andalso V =< ?maxF64 ->
                <<65:8, <<V:64/big-float>>/binary>>;
             true ->
-               throw(exceeded_the_float)
+               throw({exceeded_the_float, V})
          end;
       true ->
-         throw(is_not_number)
+         throw({is_not_number, V})
    end.
 
 string(Str) when is_binary(Str) ->
-   [<<(byte_size(Str)):16/big>>, Str];
+   StrLen = byte_size(Str),
+   case StrLen > 65535 of
+      true ->
+         throw({string_too_long, StrLen, Str});
+      _ ->
+         [<<StrLen:16/big>>, Str]
+   end;
 string(Str) ->
-   Str2 = unicode:characters_to_binary(Str, utf8),
-   [<<(byte_size(Str2)):16/big>>, Str2].
+   case unicode:characters_to_binary(Str, utf8) of
+      {error, Encoded, _Rest} ->
+         throw({invalid_utf8_string, Str, Encoded});
+      {incomplete, Encoded, _Rest} ->
+         throw({incomplete_utf8_string, Str, Encoded});
+      Str2 ->
+         StrLen = byte_size(Str2),
+         case StrLen > 65535 of
+            true ->
+               throw({string_too_long, StrLen, Str});
+            _ ->
+               [<<StrLen:16/big>>, Str2]
+         end
+   end.
 
 decode(Bin) ->
    <<MsgId:16/big, MsgBin/binary>> = Bin,

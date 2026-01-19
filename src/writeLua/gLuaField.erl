@@ -35,9 +35,9 @@
 builtMemberStr({TypeStr, NameStr}) ->
 	case lists:keyfind(TypeStr, 1, ?TypeValue) of
 		{TypeStr, _LuaTypeStr, DefValue} ->
-			<<"\tt.", NameStr/binary, " = ", DefValue/binary, "\n">>;
+			<<"\ttb.", NameStr/binary, " = ", DefValue/binary, "\n">>;
 		_ ->
-			<<"\tt.", NameStr/binary, " = {}", "\n">>
+			<<"\ttb.", NameStr/binary, " = {}", "\n">>
 	end.
 
 builtEncodeStr({TypeStr, NameStr}) ->
@@ -55,10 +55,10 @@ builtEncodeStr({TypeStr, NameStr}) ->
 								"\t\t\tbyteArray.write_", LuaTypeStr/binary, "(v)\n",
 								"\t\tend\n">>;
 						_ ->
-							<<"\t\tbyteArray.write_uint16(#(tb.", NameStr/binary, "))\n",
-								"\t\tfor k, v in pairs(tb.", NameStr/binary, ") do\n",
-								"\t\t\tbyteArray = v.encode(byteArray)\n"
-								"\t\tend\n">>
+						<<"\t\tbyteArray.write_uint16(#(tb.", NameStr/binary, "))\n",
+							"\t\tfor k, v in pairs(tb.", NameStr/binary, ") do\n",
+							"\t\t\tbyteArray = v.encode(byteArray)\n",
+							"\t\tend\n">>
 					end;
 				_ ->
 					<<"\t\tif tb.", NameStr/binary, " and next(tb.", NameStr/binary, ") then\n\t\t\tbyteArray.write_uint8(1)\n\t\t\ttb.", NameStr/binary, ".encode(byteArray)\n\t\telse\n\t\t\tbyteArray.write_uint8(0)\n\t\tend\n">>

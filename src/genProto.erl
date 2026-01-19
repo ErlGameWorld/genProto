@@ -93,7 +93,8 @@ genProto([], _SortedSProtoList, _SortedErrList) ->
 genProto(["all", AllDir], SortedSProtoList, SortedErrList) ->
 	gErlGen:genErl(SortedSProtoList, SortedErrList, AllDir, AllDir),
 	gCsGen:genCs(SortedSProtoList, SortedErrList, AllDir, AllDir),
-	gLuaGen:genLua(SortedSProtoList, SortedErrList, AllDir, AllDir);
+	gLuaGen:genLua(SortedSProtoList, SortedErrList, AllDir, AllDir),
+	gTsGen:genTs(SortedSProtoList, SortedErrList, AllDir, AllDir);
 genProto(["erl", HrlDir, ErlDir | LeftArgs], SortedSProtoList, SortedErrList) ->
 	gErlGen:genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir),
 	genProto(LeftArgs, SortedSProtoList, SortedErrList);
@@ -102,5 +103,8 @@ genProto(["cs", CsDir | LeftArgs], SortedSProtoList, SortedErrList) ->
 	genProto(LeftArgs, SortedSProtoList, SortedErrList);
 genProto(["lua", LuaDir | LeftArgs], SortedSProtoList, SortedErrList) ->
 	gLuaGen:genLua(SortedSProtoList, SortedErrList, LuaDir, LuaDir),
+	genProto(LeftArgs, SortedSProtoList, SortedErrList);
+genProto(["ts", TsDir | LeftArgs], SortedSProtoList, SortedErrList) ->
+	gTsGen:genTs(SortedSProtoList, SortedErrList, TsDir, TsDir),
 	genProto(LeftArgs, SortedSProtoList, SortedErrList).
 
