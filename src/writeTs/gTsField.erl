@@ -61,7 +61,7 @@ builtEncodeStr({TypeStr, NameStr}) ->
 					[SubTypeStr | _] = re:split(LeftStr, <<"\]">>, [{return, binary}]),
 					case lists:keyfind(SubTypeStr, 1, ?TypeValue) of
 						{SubTypeStr, _SubTsTypeStr, _DefValue} ->
-							<<"\t\t\tbyteArray.write_list(this.", NameStr/binary, ", byteArray.write_", SubTypeStr/binary, ");\n">>;
+							<<"\t\t\tbyteArray.write_list(this.", NameStr/binary, ", (item) => byteArray.write_", SubTypeStr/binary, "(item));\n">>;
 						_ ->
 							<<"\t\t\tbyteArray.write_list(this.", NameStr/binary, ", (item) => item.encode(byteArray));\n">>
 					end;
@@ -85,7 +85,7 @@ builtDecodeStr({TypeStr, NameStr}) ->
 					[SubTypeStr | _] = re:split(LeftStr, <<"\]">>, [{return, binary}]),
 					case lists:keyfind(SubTypeStr, 1, ?TypeValue) of
 						{SubTypeStr, _SubTsTypeStr, _DefValue} ->
-							<<"\t\t\tthis.", NameStr/binary, " = byteArray.read_list(byteArray.read_", SubTypeStr/binary, ");\n">>;
+							<<"\t\t\tthis.", NameStr/binary, " = byteArray.read_list(() => byteArray.read_", SubTypeStr/binary, "());\n">>;
 						_ ->
 							<<"\t\t\tthis.", NameStr/binary, " = byteArray.read_list(() => {\n",
 								"\t\t\t\tconst item = new ", SubTypeStr/binary, "();\n",

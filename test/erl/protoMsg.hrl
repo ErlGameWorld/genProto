@@ -1,12 +1,15 @@
--opaque int8() :: -128..127.
--opaque int16() :: -32768..32767.
--opaque int32() :: -2147483648..2147483647.
--opaque int64() :: -9223372036854775808..9223372036854775807.
--opaque uint8() :: 0..255.
--opaque uint16() :: 0..65535.
--opaque uint32() :: 0..4294967295.
--opaque uint64() :: 0..18446744073709551615.
--opaque double() :: float().
+-ifndef(__protoMsg_h__).
+-define(__protoMsg_h__, true).
+
+-type int8() :: -128..127.
+-type int16() :: -32768..32767.
+-type int32() :: -2147483648..2147483647.
+-type int64() :: -9223372036854775808..9223372036854775807.
+-type uint8() :: 0..255.
+-type uint16() :: 0..65535.
+-type uint32() :: 0..4294967295.
+-type uint64() :: 0..18446744073709551615.
+-type double() :: float().
 
 -define(ERR1, 1).		%% 辅导费
 -define(ERR2, 2).		%% 444 
@@ -226,3 +229,5 @@
 	, email = "" :: string()
 	, phone = [] :: [#phoneNumber{}]
 }).
+
+-endif.

@@ -14,12 +14,24 @@ spellClassMember(FieldList) ->
 
 spellClassSerialize(FieldList) ->
    FunHead = <<"\n\tpublic encode(byteArray: ByteArray): void {\n">>,
-   FunBody = <<<<(gTsField:builtEncodeStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>,
+   FunBody =
+      case FieldList of
+         [] ->
+            <<"\t\t\tvoid byteArray;\n">>;
+         _ ->
+            <<<<(gTsField:builtEncodeStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>
+      end,
    <<FunHead/binary, FunBody/binary, "\t}\n">>.
 
 spellClassDeserialize(FieldList) ->
    FunHead = <<"\n\tpublic decode(byteArray: ByteArray): void {\n">>,
-   FunBody = <<<<(gTsField:builtDecodeStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>,
+   FunBody =
+      case FieldList of
+         [] ->
+            <<"\t\t\tvoid byteArray;\n">>;
+         _ ->
+            <<<<(gTsField:builtDecodeStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>
+      end,
    <<FunHead/binary, FunBody/binary, "\t}\n">>.
 
 spellClassEnd() ->
@@ -178,15 +190,12 @@ export class ByteArray {
     public write_string(value: string): void {
         if (!value) value = '';
         
-        // 预估最大长度 (utf8 一个字符最多4字节)
         const maxLength = value.length * 4;
         this.ensureCapacity(maxLength + 2);
         
-        // 记录长度写入的位置
         const lengthPos = this.position;
         this.position += 2;
         
-        // 使用 encodeInto 直接写入，避免内存分配
         const result = textEncoder.encodeInto(value, this.buffer.subarray(this.position));
         const written = result.written || 0;
         
@@ -194,12 +203,9 @@ export class ByteArray {
             throw new Error(`String too long: ${written} bytes (max: 65535)`);
         }
         
-        // 回写长度
         this.view.setUint16(lengthPos, written, false);
         this.position += written;
     }
-
-    // --- 复杂类型写入 (Integer / Number) ---
 
     public write_integer(value: number): void {
         if (!Number.isInteger(value)) {
@@ -308,7 +314,7 @@ export class ByteArray {
     public read_string(): string {
         const length = this.read_uint16();
         this.checkAvailable(length);
-        // textDecoder 可以直接处理 subarray，这是零拷贝操作
+
         const str = textDecoder.decode(this.buffer.subarray(this.position, this.position + length));
         this.position += length;
         return str;
@@ -320,7 +326,7 @@ export class ByteArray {
             case 8: return this.read_int8();
             case 16: return this.read_int16();
             case 32: return this.read_int32();
-            case 64: return Number(this.read_int64()); // 注意精度丢失风险
+            case 64: return Number(this.read_int64());
             default: throw new Error(`Unknown integer tag: ${tag}`);
         }
     }
@@ -338,16 +344,18 @@ export class ByteArray {
         }
     }
 
-    // --- 列表写入辅助方法 (减少生成的代码量) ---
-
     public write_list<T>(list: T[] | null | undefined, writer: (val: T) => void): void {
         if (!list) {
             this.write_uint16(0);
             return;
         }
-        this.write_uint16(list.length);
-        for (let i = 0; i < list.length; i++) {
-            writer.call(this, list[i]);
+        const length = list.length;
+        if (length > 65535) {
+            throw new Error(`List too long: ${length} (max: 65535)`);
+        }
+        this.write_uint16(length);
+        for (let i = 0; i < length; i++) {
+            writer(list[i]);
         }
     }
 
@@ -355,7 +363,7 @@ export class ByteArray {
         const length = this.read_uint16();
         const list = new Array<T>(length);
         for (let i = 0; i < length; i++) {
-            list[i] = reader.call(this);
+            list[i] = reader();
         }
         return list;
     }
@@ -384,6 +392,12 @@ export class ByteArray {
         this.view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
         this.position = 0;
     }
+}
+
+export interface ProtoMessage {
+    msgId: number;
+    encode(byteArray: ByteArray): void;
+    decode(byteArray: ByteArray): void;
 }">>.
 
 spellMsgNameMap(SortedSProtoList) ->
@@ -401,11 +415,11 @@ spellMsgFactory(SortedSProtoList) ->
       end,
    Body = lists:foldl(FunSpell, <<>>, SortedSProtoList),
    <<"export class MessageFactory {\n",
-     "\tprivate static readonly messageConstructors = {\n",
+     "\tprivate static readonly messageConstructors: Record<number, new () => ProtoMessage> = {\n",
      Body/binary,
      "\t};\n",
      "\n",
-     "\tpublic static deserializeFromBytes(data: Uint8Array | number[]): any {\n",
+     "\tpublic static deserializeFromBytes(data: Uint8Array | number[]): ProtoMessage {\n",
      "\t\tconst byteArray = new ByteArray();\n",
      "\t\tbyteArray.setBytes(data, false);\n",
      "\t\tconst msgId = byteArray.read_uint16();\n",
@@ -418,7 +432,7 @@ spellMsgFactory(SortedSProtoList) ->
      "\t\treturn instance;\n",
      "\t}\n",
      "\n",
-     "\tpublic static serializeToBytes(message: any): Uint8Array {\n",
+     "\tpublic static serializeToBytes(message: ProtoMessage): Uint8Array {\n",
      "\t\tconst byteArray = new ByteArray();\n",
      "\t\tbyteArray.write_uint16(message.msgId);\n",
      "\t\tmessage.encode(byteArray);\n",

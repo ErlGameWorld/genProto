@@ -6,19 +6,22 @@
 ]).
 
 protoHrlHeader() ->
-<<"-opaque int8() :: -128..127.
--opaque int16() :: -32768..32767.
--opaque int32() :: -2147483648..2147483647.
--opaque int64() :: -9223372036854775808..9223372036854775807.
--opaque uint8() :: 0..255.
--opaque uint16() :: 0..65535.
--opaque uint32() :: 0..4294967295.
--opaque uint64() :: 0..18446744073709551615.
--opaque double() :: float().\n\n">>.
+<<"-ifndef(__protoMsg_h__).
+-define(__protoMsg_h__, true).
+
+-type int8() :: -128..127.
+-type int16() :: -32768..32767.
+-type int32() :: -2147483648..2147483647.
+-type int64() :: -9223372036854775808..9223372036854775807.
+-type uint8() :: 0..255.
+-type uint16() :: 0..65535.
+-type uint32() :: 0..4294967295.
+-type uint64() :: 0..18446744073709551615.
+-type double() :: float().\n\n">>.
 
 protoErlHeader() ->
 <<"-module(protoMsg).\n\n
--compile([nowarn_unused_vars]).
+-compile([nowarn_unused_vars, nowarn_unused_function]).
 
 -export([encodeIol/1, encodeBin/1,  encodeIol/2, subEncode/1, subEncode/2, decode/1,  decodeBin/2, getMsgName/1]).
 
@@ -675,9 +678,9 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
                         <<Acc/binary, ", V", (integer_to_binary(N))/binary>>
                      end,
                   RecStr = lists:foldl(FunRec, <<"">>, lists:seq(1, FieldLen)),
-                  <<"\t{", HandleName/binary, ", ", MsgName/binary, ", {", MsgName/binary, RecStr/binary, "}};\n">>;
+                  <<"\t{", HandleName/binary, ", {", MsgName/binary, RecStr/binary, "}};\n">>;
                _ ->
-                  <<"\t{", HandleName/binary, ", ", MsgName/binary, ", {", MsgName/binary, "}};\n">>
+                  <<"\t{", HandleName/binary, ", {", MsgName/binary, "}};\n">>
             end;
          _ ->
             case FieldLen > 0 of
@@ -718,7 +721,7 @@ genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir) ->
       end,
    {MsgHrlStr, TMsgEncodeStr, TMsgDecodeStr, _TMsgIdStr, TMsgNameStr} = lists:foldl(FunSpell, {<<>>, <<>>, <<>>, <<>>, <<>>}, SortedSProtoList),
    MsgEncodeStr = <<TMsgEncodeStr/binary, "encodeIol(_, _) ->\n\t[].\n\n">>,
-   MsgDecodeStr = <<TMsgDecodeStr/binary, "decodeBin(_, _) ->\n\t{undefinedHer, undefined, {}}.\n\n">>,
+   MsgDecodeStr = <<TMsgDecodeStr/binary, "decodeBin(_, _) ->\n\t{undefinedHer, {}}.\n\n">>,
    _MsgIdStr = <<_TMsgIdStr/binary, "getMsgId(_) -> 0.\n\n">>,
    MsgNameStr = <<TMsgNameStr/binary, "getMsgName(_) -> undefiend.\n\n">>,
 
@@ -733,7 +736,7 @@ genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir) ->
    ErlHeaderStr = protoErlHeader(),
    HrlHeaderStr = protoHrlHeader(),
    OutputErlStr = <<ErlHeaderStr/binary, MsgEncodeRecStr/binary, MsgEncodeStr/binary, MsgDecodeRecStr/binary, MsgDecodeStr/binary, MsgNameStr/binary>>,
-   OutputHrlStr = <<HrlHeaderStr/binary, ErrCodeStr/binary, "\n\n", MsgHrlStr/binary>>,
+   OutputHrlStr = <<HrlHeaderStr/binary, ErrCodeStr/binary, "\n\n", MsgHrlStr/binary, "\n-endif.">>,
    HrlFilename = do_write_hrl(HrlDir, protoMsg, OutputHrlStr),
    ErlFilename = do_write_erl(ErlDir, protoMsg, OutputErlStr),
 
