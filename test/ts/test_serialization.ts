@@ -1,4 +1,7 @@
 // 测试 TypeScript 序列化/反序列化代码的正确性
+// Run: node --experimental-strip-types test_serialization.ts
+
+import { ByteArray } from "./protoMsg.ts";
 
 const byteArray = new ByteArray();
 

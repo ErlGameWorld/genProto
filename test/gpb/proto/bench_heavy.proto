@@ -1,0 +1,124 @@
+// Protobuf translation of proto/3_bench.mpdf (same logical payloads as genProto).
+// Wire format differs; body_bytes is for size comparison only.
+
+syntax = "proto3";
+
+message test {
+  string aa = 1;
+}
+
+message phoneNumber {
+  test number = 1;
+  int32 type = 2;
+}
+
+message comboLeaf {
+  int32 id = 1;
+  string tag = 2;
+}
+
+message benchLeaf {
+  int32 id = 1;
+  string tag = 2;
+  bytes blob = 3;
+}
+
+message tBenchScalar {
+  int32 a1 = 1;
+  int32 a2 = 2;
+  int32 a3 = 3;
+  int32 a4 = 4;
+  int32 a5 = 5;
+  int32 a6 = 6;
+  int32 a7 = 7;
+  int32 a8 = 8;
+  int64 b1 = 9;
+  int64 b2 = 10;
+  int64 b3 = 11;
+  int64 b4 = 12;
+  string s1 = 13;
+  string s2 = 14;
+  string s3 = 15;
+  string s4 = 16;
+  bytes p1 = 17;
+  bytes p2 = 18;
+  bytes p3 = 19;
+  bytes p4 = 20;
+  bool f1 = 21;
+  bool f2 = 22;
+  float f3 = 23;
+  double f4 = 24;
+}
+
+message tBenchList {
+  repeated int32 scores = 1;
+  repeated string labels = 2;
+  repeated bytes chunks = 3;
+  repeated benchLeaf items = 4;
+  repeated comboLeaf extras = 5;
+}
+
+message tBenchMap {
+  map<string, int32> attrs = 1;
+  map<int32, string> rev = 2;
+  map<string, benchLeaf> lookup = 3;
+  map<string, phoneNumber> phones = 4;
+  map<string, string> tags = 5;
+}
+
+message tBenchOneof {
+  int32 seq = 1;
+  oneof reward {
+    int32 gold = 2;
+    string coupon = 3;
+    benchLeaf leaf = 4;
+    phoneNumber phone = 5;
+  }
+  oneof meta {
+    int32 code = 6;
+    string note = 7;
+  }
+  oneof payload {
+    bytes raw = 8;
+    string text = 9;
+    benchLeaf blob = 10;
+  }
+  string tip = 11;
+}
+
+message tBenchNested {
+  benchLeaf root = 1;
+  phoneNumber contact = 2;
+  comboLeaf leaf = 3;
+  repeated benchLeaf children = 4;
+  repeated phoneNumber contacts = 5;
+}
+
+message tBenchHeavy {
+  int32 seq = 1;
+  string title = 2;
+  benchLeaf root = 3;
+  repeated benchLeaf items = 4;
+  repeated int32 scores = 5;
+  repeated string labels = 6;
+  repeated bytes chunks = 7;
+  map<string, int32> attrs = 8;
+  map<int32, string> rev = 9;
+  map<string, benchLeaf> lookup = 10;
+  map<string, phoneNumber> phones = 11;
+
+  oneof reward {
+    int32 gold = 12;
+    string coupon = 13;
+    benchLeaf leaf = 14;
+    phoneNumber phone = 15;
+  }
+
+  oneof meta {
+    int32 code = 16;
+    string note = 17;
+  }
+
+  bytes payload = 18;
+  repeated comboLeaf extras = 19;
+}

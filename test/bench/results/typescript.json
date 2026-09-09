@@ -1,0 +1,67 @@
+{
+  "language": "typescript",
+  "wire_format": "genproto",
+  "iterations": 50000,
+  "cases": [
+    {
+      "category": "scalar",
+      "message": "tBenchScalar",
+      "msgId": 3002,
+      "body_bytes": 362,
+      "encode_ms": 77.15,
+      "decode_ms": 84.13,
+      "encode_ops_per_sec": 648117,
+      "decode_ops_per_sec": 594299
+    },
+    {
+      "category": "list",
+      "message": "tBenchList",
+      "msgId": 3003,
+      "body_bytes": 1937,
+      "encode_ms": 439.38,
+      "decode_ms": 774.89,
+      "encode_ops_per_sec": 113797,
+      "decode_ops_per_sec": 64526
+    },
+    {
+      "category": "map",
+      "message": "tBenchMap",
+      "msgId": 3004,
+      "body_bytes": 1317,
+      "encode_ms": 560.35,
+      "decode_ms": 922.9,
+      "encode_ops_per_sec": 89230,
+      "decode_ops_per_sec": 54177
+    },
+    {
+      "category": "oneof",
+      "message": "tBenchOneof",
+      "msgId": 3005,
+      "body_bytes": 93,
+      "encode_ms": 86.33,
+      "decode_ms": 111.53,
+      "encode_ops_per_sec": 579206,
+      "decode_ops_per_sec": 448311
+    },
+    {
+      "category": "nested",
+      "message": "tBenchNested",
+      "msgId": 3006,
+      "body_bytes": 573,
+      "encode_ms": 178.21,
+      "decode_ms": 257.72,
+      "encode_ops_per_sec": 280563,
+      "decode_ops_per_sec": 194011
+    },
+    {
+      "category": "heavy",
+      "message": "tBenchHeavy",
+      "msgId": 3007,
+      "body_bytes": 1895,
+      "encode_ms": 452.85,
+      "decode_ms": 786.07,
+      "encode_ops_per_sec": 110413,
+      "decode_ops_per_sec": 63608
+    }
+  ]
+}

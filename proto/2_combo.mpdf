@@ -1,0 +1,348 @@
+%% ============================================================================
+%% 2_combo.mpdf - codegen combo test protocol (MsgId segment 2001+)
+%%
+%% Goals:
+%%   1. Cover map / oneof / list / binary / record and scalar combinations
+%%   2. Detect variable name collisions in generated decode/encode (Len, LeftBin,
+%%      V, MapBin, OneofTag, TemV, ...)
+%%   3. Cover nested types (map in map, list in map, record in oneof, ...)
+%%
+%% Depends on records from 0_test.mpdf: phoneNumber, union, test, ...
+%%
+%% NOTE: tRepeatAll is intentionally placed LAST in this file. Placing it before
+%% other messages triggers a protoParse packrat memo issue on large messages.
+%% ============================================================================
+
+%% --- helper records -----------------------------------------------------------
+
+comboLeaf {
+	int32 id;
+	string tag;
+}
+
+comboNode {
+	comboLeaf head;
+	list[comboLeaf] leaves;
+	map<string,int32> index;
+}
+
+comboWrap {
+	string name;
+	comboNode node;
+	map<int32,string> rev;
+}
+
+%% --- [TEST-MAP] map key/value type matrix -------------------------------------
+
+tMapMatrix {
+	map<string,int32> s_i;
+	map<int32,string> i_s;
+	map<string,string> s_s;
+	map<int32,int32> i_i;
+	map<int64,int32> i64_i;
+	map<uint32,string> u_s;
+	map<string,binary> s_b;
+	map<int32,binary> i_b;
+	map<string,phoneNumber> s_rec;
+	map<int32,comboLeaf> i_leaf;
+	// map/list as map value: nested DeMap codegen still WIP, covered in tRepeatAll simple maps
+}
+
+%% --- [TEST-LIST] list element type matrix -------------------------------------
+
+tListMatrix {
+	list[bool] lb;
+	list[int8] li8;
+	list[uint8] lu8;
+	list[int16] li16;
+	list[uint16] lu16;
+	list[int32] li32;
+	list[uint32] lu32;
+	list[int64] li64;
+	list[uint64] lu64;
+	list[integer] lint;
+	list[number] lnum;
+	list[float] lflt;
+	list[double] ldbl;
+	list[string] lstr;
+	list[binary] lbin;
+	list[union] luni;
+	list[phoneNumber] lph;
+	list[comboLeaf] lleaf;
+	list[comboNode] lnode;
+	// nested list[list] / list[map] omitted: genFieldDecode splits on first ']'
+	list[int32] lli32_1;
+	list[int32] lli32_2;
+	list[int32] lli32_3;
+	map<string,int32> lmap_1;
+	map<string,int32> lmap_2;
+	map<string,int32> lmap_3;
+}
+
+%% --- [TEST-ONEOF] one oneof with many branch types ----------------------------
+
+tOneofMatrix {
+	oneof payload {
+		bool flag;
+		int32 num;
+		string text;
+		binary raw;
+		phoneNumber phone;
+		comboLeaf leaf;
+		comboNode node;
+		list[int32] ids;
+		list[string] tags;
+	}
+}
+
+%% --- [TEST-NEST] deep nesting -------------------------------------------------
+
+tNestDeep {
+	map<string,comboLeaf> ms_leaf;
+	comboWrap wrap;
+	oneof nested {
+		comboNode as_node;
+		comboLeaf as_leaf;
+	}
+	list[comboWrap] lwrap_1;
+	list[comboWrap] lwrap_2;
+	list[comboWrap] lwrap_3;
+}
+
+%% --- [TEST-INTERLEAVE] strict alternation of types ----------------------------
+
+tInterleave {
+	int32 n1;
+	string s1;
+	map<string,int32> m1;
+	list[int32] l1;
+	oneof o1 { int32 a; string b; }
+	int32 n2;
+	string s2;
+	map<string,int32> m2;
+	list[int32] l2;
+	oneof o2 { int32 a; string b; }
+	int32 n3;
+	string s3;
+	map<string,int32> m3;
+	list[int32] l3;
+	oneof o3 { int32 a; string b; }
+	binary b1;
+	binary b2;
+	binary b3;
+}
+
+%% --- [TEST-MULTI-ONEOF] five consecutive oneof fields -------------------------
+
+tMultiOneof {
+	oneof a { int32 x; string y; }
+	int32 g1;
+	oneof b { int32 x; string y; binary z; }
+	int32 g2;
+	oneof c { int32 x; phoneNumber p; }
+	int32 g3;
+	oneof d { comboLeaf l; list[int32] ids; }
+	int32 g4;
+	oneof e { string s; int32 x; }
+}
+
+%% --- [TEST-EMPTY] empty containers / undefined-like values --------------------
+
+tEmptyEdge {
+	map<string,int32> empty_map;
+	list[int32] empty_list;
+	list[string] empty_strs;
+	binary empty_bin;
+	string empty_str;
+	oneof none {
+		int32 x;
+		string y;
+	}
+	phoneNumber empty_phone;
+	comboLeaf empty_leaf;
+}
+
+%% --- [TEST-SCALAR-RUN] adjacent same-type groups ------------------------------
+
+tScalarRun {
+	int32 a1;
+	int32 a2;
+	int32 a3;
+	string b1;
+	string b2;
+	string b3;
+	map<string,int32> c1;
+	map<string,int32> c2;
+	map<string,int32> c3;
+}
+
+%% --- [TEST-VAR] tRepeatAll - MUST BE LAST IN THIS FILE -----------------------
+%% Same message: each type appears >=3 times (adjacent and non-adjacent).
+%% Exercises codegen index counters: Len1/Len2..., LeftBin3/4..., V1/V2..., MapBin...
+tRepeatAll {
+	// bool x3 adjacent
+	bool b1;
+	bool b2;
+	bool b3;
+
+	// int32 x4: three adjacent, one after string gap
+	int32 i32_1;
+	int32 i32_2;
+	int32 i32_3;
+	string gap_a;
+	int32 i32_4;
+
+	// int8/uint8/int16/uint16 x3 each, interleaved
+	int8 i8_1;
+	int8 i8_2;
+	uint8 u8_1;
+	int8 i8_3;
+	uint8 u8_2;
+	uint8 u8_3;
+	int16 i16_1;
+	int16 i16_2;
+	int16 i16_3;
+	uint16 u16_1;
+	string gap_b;
+	uint16 u16_2;
+	uint16 u16_3;
+
+	// int32 x3 again (counter continues from earlier int32 fields)
+	int32 i32_5;
+	int32 i32_6;
+	int32 i32_7;
+
+	uint32 u32_1;
+	uint32 u32_2;
+	uint32 u32_3;
+	int64 i64_1;
+	int64 i64_2;
+	string gap_c;
+	int64 i64_3;
+	uint64 u64_1;
+	uint64 u64_2;
+	uint64 u64_3;
+
+	integer inte_1;
+	integer inte_2;
+	integer inte_3;
+	number num_1;
+	string gap_d;
+	number num_2;
+	number num_3;
+	float flt_1;
+	float flt_2;
+	float flt_3;
+	double dbl_1;
+	double dbl_2;
+	double dbl_3;
+
+	string str_1;
+	string str_2;
+	string str_3;
+	int32 gap_e;
+	string str_4;
+
+	binary bin_1;
+	binary bin_2;
+	binary bin_3;
+
+	union uni_1;
+	union uni_2;
+	union uni_3;
+
+	list[int32] li32_1;
+	list[int32] li32_2;
+	list[int32] li32_3;
+
+	list[string] lstr_1;
+	int32 gap_f;
+	list[string] lstr_2;
+	list[string] lstr_3;
+
+	list[binary] lbin_1;
+	list[binary] lbin_2;
+	list[binary] lbin_3;
+	list[bool] lbool_1;
+	list[bool] lbool_2;
+	list[bool] lbool_3;
+	list[integer] lint_1;
+	list[integer] lint_2;
+	list[integer] lint_3;
+	list[number] lnum_1;
+	list[number] lnum_2;
+	list[number] lnum_3;
+
+	list[phoneNumber] lph_1;
+	list[phoneNumber] lph_2;
+	string gap_g;
+	list[phoneNumber] lph_3;
+
+	list[comboLeaf] lleaf_1;
+	list[comboLeaf] lleaf_2;
+	list[comboLeaf] lleaf_3;
+
+	map<string,int32> ms_i_1;
+	map<string,int32> ms_i_2;
+	map<string,int32> ms_i_3;
+
+	map<int32,string> mi_s_1;
+	int32 gap_h;
+	map<int32,string> mi_s_2;
+	map<int32,string> mi_s_3;
+
+	map<string,string> ms_s_1;
+	map<string,string> ms_s_2;
+	map<string,string> ms_s_3;
+	map<int32,int32> mi_i_1;
+	map<int32,int32> mi_i_2;
+	map<int32,int32> mi_i_3;
+
+	map<string,binary> ms_b_1;
+	map<string,binary> ms_b_2;
+	map<string,binary> ms_b_3;
+	map<int32,binary> mi_b_1;
+	map<int32,binary> mi_b_2;
+	map<int32,binary> mi_b_3;
+
+	map<string,phoneNumber> ms_p_1;
+	map<string,phoneNumber> ms_p_2;
+	map<string,phoneNumber> ms_p_3;
+	map<int32,comboLeaf> mi_l_1;
+	map<int32,comboLeaf> mi_l_2;
+	map<int32,comboLeaf> mi_l_3;
+
+	// oneof x3 with repeated branch names (like toneof item/item2)
+	oneof pick1 {
+		int32 gold;
+		string coupon;
+		binary voucher;
+	}
+	int32 gap_i;
+	oneof pick2 {
+		int32 gold;
+		string coupon;
+		phoneNumber phone;
+	}
+	string gap_j;
+	oneof pick3 {
+		int32 gold;
+		comboLeaf leaf;
+		list[int32] ids;
+	}
+
+	phoneNumber ph_1;
+	phoneNumber ph_2;
+	string gap_k;
+	phoneNumber ph_3;
+
+	comboLeaf leaf_1;
+	comboLeaf leaf_2;
+	comboLeaf leaf_3;
+	comboNode node_1;
+	comboNode node_2;
+	comboNode node_3;
+	comboWrap wrap_1;
+	comboWrap wrap_2;
+	comboWrap wrap_3;
+}

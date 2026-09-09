@@ -50,6 +50,7 @@ protoErlHeader() ->
 -define(integer(V), (integer(V))).
 -define(number(V), (number(V))).
 -define(string(V), (string(V))).
+-define(binary(V), (binary(V))).
 -define(float(V), <<V:32/big-float>>).
 -define(double(V), <<V:64/big-float>>).
 -define(bool(V), (case V of true -> <<1:8>>; _ -> <<0:8>> end)).
@@ -68,6 +69,7 @@ protoErlHeader() ->
 -define(list_integer(List), [<<(listLen(List)):16/big>>, [integer(V) || V <- List]]).
 -define(list_number(List), [<<(listLen(List)):16/big>>, [number(V) || V <- List]]).
 -define(list_string(List), [<<(listLen(List)):16/big>>, [string(V) || V <- List]]).
+-define(list_binary(List), [<<(listLen(List)):16/big>>, [binary(V) || V <- List]]).
 -define(list_record(List), [<<(listLen(List)):16/big>>, [subEncode(V) || V <- List]]).
 
 listLen(List) ->
@@ -150,6 +152,19 @@ string(Str) ->
          end
    end.
 
+binary(Bin) when is_binary(Bin) ->
+   BinLen = byte_size(Bin),
+   case BinLen > 65535 of
+      true ->
+         throw({binary_too_long, BinLen});
+      _ ->
+         [<<BinLen:16/big>>, Bin]
+   end;
+binary(Bin) when is_list(Bin) ->
+   binary(erlang:iolist_to_binary(Bin));
+binary(Bin) ->
+   throw({not_a_binary, Bin}).
+
 decode(Bin) ->
    <<MsgId:16/big, MsgBin/binary>> = Bin,
    decodeBin(MsgId, MsgBin).
@@ -228,12 +243,12 @@ spellHead([_FieldInfo | FieldList], Index, HeadBinStr) ->
 
 spellBody([], _Index, BodyBinStr) ->
    BodyBinStr;
-spellBody([{FieldType, _FieldName}], Index, BodyBinStr) ->
+spellBody([FieldInfo], Index, BodyBinStr) ->
    TemV = <<"V", (integer_to_binary(Index))/binary>>,
-   <<BodyBinStr/binary, (gErlField:builtPackStr(FieldType))/binary, TemV/binary, ")">>;
-spellBody([{FieldType, _FieldName} | FieldList], Index, BodyBinStr) ->
+   <<BodyBinStr/binary, (gErlField:builtPackExpr(FieldInfo, TemV))/binary>>;
+spellBody([FieldInfo | FieldList], Index, BodyBinStr) ->
    TemV = <<"V", (integer_to_binary(Index))/binary>>,
-   NewBodyBinStr = <<BodyBinStr/binary, (gErlField:builtPackStr(FieldType))/binary, TemV/binary, "), ">>,
+   NewBodyBinStr = <<BodyBinStr/binary, (gErlField:builtPackExpr(FieldInfo, TemV))/binary, ", ">>,
    spellBody(FieldList, Index + 1, NewBodyBinStr).
 
 spellErrCodeHrl([], ErrBinStr) ->
@@ -340,7 +355,11 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
    end,
 
    FunBody =
-      fun({FieldType, _FieldName}, {IsSimple, StrAcc}) ->
+      fun(FieldInfo, {IsSimple, StrAcc}) ->
+         case FieldInfo of
+            {oneof, _OneofName, Branches} ->
+               decodeOneofField(Branches, IsSimple, StrAcc, SortedSProtoList, IsForBin);
+            {FieldType, _FieldName} ->
          case FieldType of
             <<"bool">> ->
                TemStr =
@@ -498,6 +517,35 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
                   "true ->\n\t\t\t\t\tV", UseVStr/binary, " = binary:copy(TemStrV", UseVStr/binary, ");\n\t\t\t\t",
                   "_ ->\n\t\t\t\t\tV", UseVStr/binary, " = TemStrV", UseVStr/binary, "\n\t\t\tend\n\tend,\n">>,
                {false, <<StrAcc/binary, TemStr/binary, RefSizeStr/binary, StrStr/binary, VStr/binary>>};
+            <<"binary">> ->
+               TemStr =
+                  case IsSimple of
+                     true ->
+                        GetLeftBinStr1 = getIndexStr(pd_leftBin),
+                        UseLeftBinStr1 = useIndexStr(pd_leftBin),
+                        <<"LeftBin", UseLeftBinStr1/binary, "/binary>> = LeftBin", GetLeftBinStr1/binary, ",\n">>;
+                     _ ->
+                        <<"">>
+                  end,
+               UseLenStr = useIndexStr(pd_len),
+               GetLeftBinStr2 = getIndexStr(pd_leftBin),
+               UseLeftBinStr2 = useIndexStr(pd_leftBin),
+               UseVStr = useIndexStr(pd_v),
+               RefSizeStr =
+                  case isCalcRefSize() of
+                     false ->
+                        useIndexStr(pd_isCalcRefSize),
+                        <<"\tRefSize = binary:referenced_byte_size(LeftBin0),\n">>;
+                     _ ->
+                        <<"">>
+                  end,
+               StrStr = <<"\t<<Len", UseLenStr/binary, ":16/big-unsigned, TemStrV", UseVStr/binary, ":Len", UseLenStr/binary, "/binary, LeftBin", UseLeftBinStr2/binary, "/binary>> = LeftBin", GetLeftBinStr2/binary, ",\n">>,
+               VStr = <<"\tcase Len", UseLenStr/binary, " < ?BinaryShareSize of\n\t\t",
+                  "true ->\n\t\t\tV", UseVStr/binary, " = TemStrV", UseVStr/binary, ";\n\t\t",
+                  "_ ->\n\t\t\tcase RefSize / Len", UseLenStr/binary, " > ?BinaryCopyRatio of\n\t\t\t\t",
+                  "true ->\n\t\t\t\t\tV", UseVStr/binary, " = binary:copy(TemStrV", UseVStr/binary, ");\n\t\t\t\t",
+                  "_ ->\n\t\t\t\t\tV", UseVStr/binary, " = TemStrV", UseVStr/binary, "\n\t\t\tend\n\tend,\n">>,
+               {false, <<StrAcc/binary, TemStr/binary, RefSizeStr/binary, StrStr/binary, VStr/binary>>};
             <<"integer">> ->
                TemStr =
                   case IsSimple of
@@ -613,6 +661,16 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
                               VStr = <<"\t{V", UseVStr/binary, ", LeftBin", UseLeftBinStr3/binary, "} = deStringList(Len", UseLenStr/binary, ", LeftBin", GetLeftBinStr3/binary, ", RefSize, []),\n">>,
                               <<RefSizeStr/binary, VStr/binary>>
                         end;
+                     <<"binary">> ->
+                        case isCalcRefSize() of
+                           true ->
+                              <<"\t{V", UseVStr/binary, ", LeftBin", UseLeftBinStr3/binary, "} = deStringList(Len", UseLenStr/binary, ", LeftBin", GetLeftBinStr3/binary, ", RefSize, []),\n">>;
+                           _ ->
+                              useIndexStr(pd_isCalcRefSize),
+                              RefSizeStr = <<"\tRefSize = binary:referenced_byte_size(LeftBin0),\n">>,
+                              VStr = <<"\t{V", UseVStr/binary, ", LeftBin", UseLeftBinStr3/binary, "} = deStringList(Len", UseLenStr/binary, ", LeftBin", GetLeftBinStr3/binary, ", RefSize, []),\n">>,
+                              <<RefSizeStr/binary, VStr/binary>>
+                        end;
                      ListRecord ->
                         case lists:keyfind(ListRecord, 1, SortedSProtoList) of
                            {ListRecord, ListMsgId, _} = RecordInfo ->
@@ -624,6 +682,8 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
                         end
                   end,
                {false, <<StrAcc/binary, TemStr/binary, LenStr/binary, DeListStr/binary>>};
+            <<"map<", _/binary>> = MapType ->
+               decodeMapField(MapType, IsSimple, StrAcc, SortedSProtoList, IsForBin);
             OtherRecord ->
                TemStr =
                   case IsSimple of
@@ -650,6 +710,7 @@ genDecodeBin({MsgName, MsgId, FieldList}, SortedSProtoList, IsForBin) ->
                      io:format("this an Record undefined :~p~n", [OtherRecord]),
                      throw(record_undefined)
                end
+         end
          end
       end,
 
@@ -723,7 +784,7 @@ genErl(SortedSProtoList, SortedErrList, HrlDir, ErlDir) ->
    MsgEncodeStr = <<TMsgEncodeStr/binary, "encodeIol(_, _) ->\n\t[].\n\n">>,
    MsgDecodeStr = <<TMsgDecodeStr/binary, "decodeBin(_, _) ->\n\t{undefinedHer, {}}.\n\n">>,
    _MsgIdStr = <<_TMsgIdStr/binary, "getMsgId(_) -> 0.\n\n">>,
-   MsgNameStr = <<TMsgNameStr/binary, "getMsgName(_) -> undefiend.\n\n">>,
+   MsgNameStr = <<TMsgNameStr/binary, "getMsgName(_) -> undefined.\n\n">>,
 
    ErrCodeStr = spellErrCodeHrl(SortedErrList, <<>>),
 
@@ -760,6 +821,153 @@ dealSubRec([MsgInfo | SubRecList], SortedSProtoList, SubEncodeAcc, SubDecodeAcc)
    resetPd(),
    DecodeStr = genDecodeBin(MsgInfo, SortedSProtoList, false),
    dealSubRec(SubRecList, SortedSProtoList, <<SubEncodeAcc/binary, EncodeStr/binary>>, <<SubDecodeAcc/binary, DecodeStr/binary>>).
+
+closeSimplePrefix(true) ->
+   GetLeftBinStr1 = getIndexStr(pd_leftBin),
+   UseLeftBinStr1 = useIndexStr(pd_leftBin),
+   <<"LeftBin", UseLeftBinStr1/binary, "/binary>> = LeftBin", GetLeftBinStr1/binary, ",\n">>;
+closeSimplePrefix(_) ->
+   <<"">>.
+
+noteRecordType(TypeStr, SortedSProtoList, IsForBin) ->
+   case TypeStr of
+      <<"list[", LeftStr/binary>> ->
+         [SubTypeStr | _] = re:split(LeftStr, <<"\\]">>, [{return, binary}]),
+         noteRecordType(SubTypeStr, SortedSProtoList, IsForBin);
+      <<"map<", _/binary>> ->
+         {KType, VType} = gErlField:parseMapType(TypeStr),
+         noteRecordType(KType, SortedSProtoList, IsForBin),
+         noteRecordType(VType, SortedSProtoList, IsForBin);
+      _ ->
+         case gErlField:isBaseType(TypeStr) of
+            true ->
+               ok;
+            _ ->
+               case lists:keyfind(TypeStr, 1, SortedSProtoList) of
+                  false ->
+                     io:format("this an Record undefined :~p~n", [TypeStr]),
+                     throw(record_undefined);
+                  RecordInfo ->
+                     addSubRec(RecordInfo, IsForBin)
+               end
+         end
+   end.
+
+%% 解码单个字段值：InBin -> Val + OutBin（用于 map 元素 / oneof 分支）
+genFieldDecode(<<"bool">>, InBin, OutBin, Val, _Sorted, _IsForBin) ->
+   Tmp = <<"Bool", Val/binary>>,
+   <<"<<", Tmp/binary, ":8/big-unsigned, ", OutBin/binary, "/binary>> = ", InBin/binary, ", ", Val/binary, " = ", Tmp/binary, " =:= 1">>;
+genFieldDecode(<<"int8">>, InBin, OutBin, Val, _, _) ->
+   <<"<<", Val/binary, ":8/big-signed, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"uint8">>, InBin, OutBin, Val, _, _) ->
+   <<"<<", Val/binary, ":8/big-unsigned, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"int16">>, InBin, OutBin, Val, _, _) ->
+   <<"<<", Val/binary, ":16/big-signed, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"uint16">>, InBin, OutBin, Val, _, _) ->
+   <<"<<", Val/binary, ":16/big-unsigned, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"int32">>, InBin, OutBin, Val, _, _) ->
+   <<"<<", Val/binary, ":32/big-signed, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"uint32">>, InBin, OutBin, Val, _, _) ->
+   <<"<<", Val/binary, ":32/big-unsigned, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"int64">>, InBin, OutBin, Val, _, _) ->
+   <<"<<", Val/binary, ":64/big-signed, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"uint64">>, InBin, OutBin, Val, _, _) ->
+   <<"<<", Val/binary, ":64/big-unsigned, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"float">>, InBin, OutBin, Val, _, _) ->
+   <<"<<", Val/binary, ":32/big-float, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"double">>, InBin, OutBin, Val, _, _) ->
+   <<"<<", Val/binary, ":64/big-float, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"string">>, InBin, OutBin, Val, _, _) ->
+   UseLen = useIndexStr(pd_len),
+   <<"<<Len", UseLen/binary, ":16/big-unsigned, ", Val/binary, ":Len", UseLen/binary, "/binary, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"binary">>, InBin, OutBin, Val, _, _) ->
+   UseLen = useIndexStr(pd_len),
+   <<"<<Len", UseLen/binary, ":16/big-unsigned, ", Val/binary, ":Len", UseLen/binary, "/binary, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"integer">>, InBin, OutBin, Val, _, _) ->
+   UseBits = useIndexStr(pd_intBits),
+   <<"<<IntBits", UseBits/binary, ":8, ", Val/binary, ":IntBits", UseBits/binary, "/big-signed, ", OutBin/binary, "/binary>> = ", InBin/binary>>;
+genFieldDecode(<<"number">>, InBin, OutBin, Val, _, _) ->
+   UseBits = useIndexStr(pd_numBits),
+   <<"<<NumBits", UseBits/binary, ":8, NumBin", UseBits/binary, "/binary>> = ", InBin/binary, ", {", Val/binary, ", ", OutBin/binary, "} = case NumBits", UseBits/binary, " of 33 -> <<NumF:32/big-float, NumBin2/binary>> = NumBin", UseBits/binary, ", {NumF, NumBin2}; 65 -> <<NumD:64/big-float, NumBin2/binary>> = NumBin", UseBits/binary, ", {NumD, NumBin2}; _ -> <<", Val/binary, ":NumBits", UseBits/binary, "/big-signed, NumBin2/binary>> = NumBin", UseBits/binary, ", {", Val/binary, ", NumBin2} end">>;
+genFieldDecode(<<"list[", LeftStr/binary>>, InBin, OutBin, Val, Sorted, IsForBin) ->
+   [SubTypeStr | _] = re:split(LeftStr, <<"\\]">>, [{return, binary}]),
+   noteRecordType(SubTypeStr, Sorted, IsForBin),
+   UseLen = useIndexStr(pd_len),
+   UseListBin = useIndexStr(pd_listBin),
+   LB0 = <<"LB0", Val/binary>>,
+   LB1 = <<"LB1", Val/binary>>,
+   LE = <<"LE", Val/binary>>,
+   ElemDec = genFieldDecode(SubTypeStr, LB0, LB1, LE, Sorted, IsForBin),
+   <<"<<Len", UseLen/binary, ":16/big-unsigned, ListBin", UseListBin/binary, "/binary>> = ", InBin/binary, ", {", Val/binary, ", ", OutBin/binary, "} = (fun DeL(0, __LB, __Acc) -> {lists:reverse(__Acc), __LB}; DeL(__N, ", LB0/binary, ", __Acc) -> ", ElemDec/binary, ", DeL(__N - 1, ", LB1/binary, ", [", LE/binary, " | __Acc]) end)(Len", UseLen/binary, ", ListBin", UseListBin/binary, ", [])">>;
+genFieldDecode(<<"map<", _/binary>> = MapType, InBin, OutBin, Val, Sorted, IsForBin) ->
+   {KType, VType} = gErlField:parseMapType(MapType),
+   noteRecordType(KType, Sorted, IsForBin),
+   noteRecordType(VType, Sorted, IsForBin),
+   UseLen = useIndexStr(pd_len),
+   MB0 = <<"MB0", Val/binary>>,
+   MB1 = <<"MB1", Val/binary>>,
+   MB2 = <<"MB2", Val/binary>>,
+   {MK, MV} = gErlField:mapKVVars(Val),
+   EntryDec = genMapEntryDecode(KType, VType, MK, MV, MB0, MB1, MB2, Sorted, IsForBin),
+   <<"<<Len", UseLen/binary, ":16/big-unsigned, MapBin", Val/binary, "/binary>> = ", InBin/binary, ", {", Val/binary, ", ", OutBin/binary, "} = (fun DeMap(0, MapBin, MapAcc) -> {MapAcc, MapBin}; DeMap(N, MapBin, MapAcc) -> ", EntryDec/binary, ", DeMap(N - 1, MapBin2, maps:put(", MK/binary, ", ", MV/binary, ", MapAcc)) end)(Len", UseLen/binary, ", MapBin", Val/binary, ", #{})">>;
+genFieldDecode(RecordType, InBin, OutBin, Val, Sorted, IsForBin) ->
+   case lists:keyfind(RecordType, 1, Sorted) of
+      {RecordType, MsgId, _} = Info ->
+         addSubRec(Info, IsForBin),
+         <<"{", Val/binary, ", ", OutBin/binary, "} = decodeRec(", (integer_to_binary(MsgId))/binary, ", ", InBin/binary, ")">>;
+      _ ->
+         io:format("this an Record undefined :~p~n", [RecordType]),
+         throw(record_undefined)
+   end.
+
+genMapEntryDecode(KType, VType, MK, MV, InBin, MidBin, OutBin, Sorted, IsForBin) ->
+   KDec = genFieldDecode(KType, InBin, MidBin, MK, Sorted, IsForBin),
+   VDec = genFieldDecode(VType, MidBin, OutBin, MV, Sorted, IsForBin),
+   <<KDec/binary, ", ", VDec/binary>>.
+
+genMapDecodeLoop(KType, VType, MK, MV, LenVar, InBinVar, Sorted, IsForBin) ->
+   EntryDec = genMapEntryDecode(KType, VType, MK, MV, <<"MapBin">>, <<"MapBin1">>, <<"MapBin2">>, Sorted, IsForBin),
+   <<"(fun DeMap(0, MapBin, MapAcc) -> {MapAcc, MapBin}; DeMap(N, MapBin, MapAcc) -> ", EntryDec/binary, ", DeMap(N - 1, MapBin2, maps:put(", MK/binary, ", ", MV/binary, ", MapAcc)) end)(", LenVar/binary, ", ", InBinVar/binary, ", #{})">>.
+
+decodeMapField(MapType, IsSimple, StrAcc, SortedSProtoList, IsForBin) ->
+   {KType, VType} = gErlField:parseMapType(MapType),
+   noteRecordType(KType, SortedSProtoList, IsForBin),
+   noteRecordType(VType, SortedSProtoList, IsForBin),
+   TemStr = closeSimplePrefix(IsSimple),
+   UseLenStr = useIndexStr(pd_len),
+   GetLeftBinStr = getIndexStr(pd_leftBin),
+   UseLeftBinStr = useIndexStr(pd_leftBin),
+   UseVStr = useIndexStr(pd_v),
+   UseLeftBinStr2 = useIndexStr(pd_leftBin),
+   FieldVar = <<"V", UseVStr/binary>>,
+   LenStr = <<"\t<<Len", UseLenStr/binary, ":16/big-unsigned, LeftBin", UseLeftBinStr/binary, "/binary>> = LeftBin", GetLeftBinStr/binary, ",\n">>,
+   {MK, MV} = gErlField:mapKVVars(FieldVar),
+   LoopStr = genMapDecodeLoop(KType, VType, MK, MV, <<"Len", UseLenStr/binary>>, <<"LeftBin", UseLeftBinStr/binary>>, SortedSProtoList, IsForBin),
+   MapStr = <<"\t{", FieldVar/binary, ", LeftBin", UseLeftBinStr2/binary, "} = ", LoopStr/binary, ",\n">>,
+   {false, <<StrAcc/binary, TemStr/binary, LenStr/binary, MapStr/binary>>}.
+
+decodeOneofField(Branches, IsSimple, StrAcc, SortedSProtoList, IsForBin) ->
+   lists:foreach(fun({TypeStr, _}) -> noteRecordType(TypeStr, SortedSProtoList, IsForBin) end, Branches),
+   TemStr = closeSimplePrefix(IsSimple),
+   UseTagStr = useIndexStr(pd_bool),
+   GetLeftBinStr = getIndexStr(pd_leftBin),
+   UseLeftBinStr = useIndexStr(pd_leftBin),
+   UseVStr = useIndexStr(pd_v),
+   UseLeftBinStr2 = useIndexStr(pd_leftBin),
+   FieldVar = <<"V", UseVStr/binary>>,
+   TemV = <<"TemV", UseVStr/binary>>,
+   TagStr = <<"\t<<OneofTag", UseTagStr/binary, ":8/big-unsigned, LeftBin", UseLeftBinStr/binary, "/binary>> = LeftBin", GetLeftBinStr/binary, ",\n">>,
+   Cases = buildOneofDecodeCases(Branches, 1, UseLeftBinStr, UseLeftBinStr2, FieldVar, TemV, SortedSProtoList, IsForBin, <<>>),
+   CaseStr = <<"\tcase OneofTag", UseTagStr/binary, " of\n\t\t0 ->\n\t\t\t", FieldVar/binary, " = undefined,\n\t\t\tLeftBin", UseLeftBinStr2/binary, " = LeftBin", UseLeftBinStr/binary, ";\n", Cases/binary, "\t\t_ ->\n\t\t\t", FieldVar/binary, " = undefined,\n\t\t\tLeftBin", UseLeftBinStr2/binary, " = LeftBin", UseLeftBinStr/binary, ",\n\t\t\tthrow({invalid_oneof_tag, OneofTag", UseTagStr/binary, "})\n\tend,\n">>,
+   {false, <<StrAcc/binary, TemStr/binary, TagStr/binary, CaseStr/binary>>}.
+
+buildOneofDecodeCases([], _Tag, _InBinIdx, _OutBinIdx, _FieldVar, _TemV, _Sorted, _IsForBin, Acc) ->
+   Acc;
+buildOneofDecodeCases([{TypeStr, BranchName} | Rest], Tag, InBinIdx, OutBinIdx, FieldVar, TemV, Sorted, IsForBin, Acc) ->
+   TagBin = integer_to_binary(Tag),
+   Dec = genFieldDecode(TypeStr, <<"LeftBin", InBinIdx/binary>>, <<"LeftBin", OutBinIdx/binary>>, TemV, Sorted, IsForBin),
+   Case = <<"\t\t", TagBin/binary, " ->\n\t\t\t", Dec/binary, ",\n\t\t\t", FieldVar/binary, " = {", BranchName/binary, ", ", TemV/binary, "};\n">>,
+   buildOneofDecodeCases(Rest, Tag + 1, InBinIdx, OutBinIdx, FieldVar, TemV, Sorted, IsForBin, <<Acc/binary, Case/binary>>).
 
 do_write_hrl(OutDir, Mod, BinStr) ->
    Filename = filename:join([OutDir, atom_to_list(Mod) ++ ".hrl"]),

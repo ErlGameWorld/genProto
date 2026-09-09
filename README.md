@@ -22,9 +22,55 @@ Use
 
 # 支持的数据类型
 
-    erl: int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer number(整数或者浮点数) string float(32位浮点数) double(64位浮点数) bool record(struct) 以及上面类型的列表
-    lua: int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer number(整数或者浮点数) string float(32位浮点数) double(64位浮点数) bool record 以及上面类型的列表
-    c#: int8 uint8 int16 uint16 int32 uint32 int64 uint64 string float(32位浮点数) double(64位浮点数) bool record 以及上面类型的列表
+    erl: int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer number(整数或者浮点数) string binary float(32位浮点数) double(64位浮点数) bool record(struct) list map oneof 以及上面类型的列表
+    lua: int8 uint8 int16 uint16 int32 uint32 int64 uint64 integer number(整数或者浮点数) string binary float(32位浮点数) double(64位浮点数) bool record list map oneof 以及上面类型的列表
+    c#: int8 uint8 int16 uint16 int32 uint32 int64 uint64 string binary float(32位浮点数) double(64位浮点数) bool record list map oneof 以及上面类型的列表
+    ts: 同 erl/lua（含 integer/number/binary/map/oneof）
+
+# 协议命名约定
+
+协议文件（`.mpdf`）里要区分 **类型关键字** 和 **字段名**：
+
+- **类型关键字**（写在字段类型位置）是 mpdf 语法的一部分，例如 `bool`、`int32`、`integer`、`number`、`float`、`double`、`string`、`list[...]`、`map<...>`、`oneof`，应当继续使用。
+- **字段名**（写在类型后面的标识符）会原样生成到 Erlang record、C# 属性、TS/Lua 表字段等，**不要**使用各目标语言的保留字或与类型同名的单词。
+
+### 禁止或应避免的字段名示例
+
+| 类别 | 示例（不要用作字段名） |
+|------|------------------------|
+| C# / 多语言 | `bool`, `int`, `float`, `double`, `string`, `byte`, `long`, `short`, `object`, `void` |
+| 与标量类型同名 | `int8`, `int16`, `int32`, `int64`, `uint8`, `uint16`, `uint32`, `uint64` |
+| 与消息/类型同名 | 字段名 `union`（消息类型可叫 `union`，字段建议用 `uval` 等） |
+
+### 推荐写法
+
+```mpdf
+tbool {
+    bool flag;        // 好：类型 bool，字段 flag
+}
+
+allType {
+    bool flag;
+    int32 v32;
+    float f32;
+    double f64;
+    union uval;       // 好：消息类型 union，字段 uval
+}
+```
+
+```mpdf
+// 不好：字段名与类型/语言关键字冲突
+tbool { bool bool; }
+allType { int32 int32; float float; union union; }
+```
+
+说明：
+
+- 字段改名 **不改变线格式**（只影响各语言源码里的标识符，不影响二进制布局）。
+- C# 生成器对少量保留字仍有 `@field` 兜底，但协议侧应优先遵守上述约定，避免依赖转义。
+- 测试协议 `proto/0_test.mpdf` 已按此约定维护；新增消息请参照执行。
+
+性能对比协议见 `proto/3_bench.mpdf`；测试环境、流程与结果解读见 **[test/TESTING.md](test/TESTING.md)**（与根 README 分开维护）。
 
 # 各种数据类型的编码格式(字节序大端存储， string用utf8编码)
 
@@ -39,11 +85,16 @@ Use
     integer：            如果值在int8范围区间: 8bit的Tag 值为8 + 8bit的值; 如果值在int16范围区间: 8bit的Tag 值为16 + 16bit的值; 如果值在int32范围区间: 8bit的Tag 值为32 + 32bit的值; 如果值在int64范围区间: 8bit的Tag 值为64 + 64bit的值;
     number：             如果值是整数则：编码规则同 integer类型; 如果是浮点数: 如果值在float32范围区间  8bit的Tag 值为33 + 32bit的值; 如果值在float64范围区间  8bit的Tag 值为65 + 64bit的值;    
     string：             16bit的Tag 存放的字符串长度(长度不包含字符串结尾符) + 字符串的内容(内容不包含结字符串尾符号)         
+    binary：             同 string 线格式：16bit长度 + 原始字节（不做 UTF-8 校验/转换）
     float:               直接存放32bit的值
     double：             直接存放64bit的值
     bool：               占位8bit 如果为true 则存放的值为1 否则存放的值为0
     record(struct)：     如果是undefined 或者是空指针 则 8bit Tag 值为0, 否则 8bit的tag 值为1 + record的二进制数据
     list_+上面的数据类型的时候： 16bit的tag 用于存放 数组的长度 + 按数组顺序序列化每个元素的值的二进制数据(注意：如果列表类型为record(struct) 每个值序列化的时候并不会加 8bit的tag, 直接存record的二进制数据)
+    map<K,V>：           16bit 元素个数 + 依次序列化每个 (K, V)；undefined/null/nil 等价于空 map（个数为 0）
+                         Erlang 编码：`{MK$Num, MV$Num} <- maps:to_list(Map)`（OTP 26+ 可写 `{MK, MV} := Map`）
+    oneof：              8bit tag（0=未设置，1..N 为分支序号）+ 选中分支 payload
+                         Erlang 运行时形态：undefined | {BranchAtom, Value}（BranchAtom 为 oneof 内字段名）
 
 ### 关于消息接收转发解码和发送
 

@@ -207,6 +207,17 @@ export class ByteArray {
         this.position += written;
     }
 
+    public write_binary(value: Uint8Array | null | undefined): void {
+        const bin = value || new Uint8Array();
+        if (bin.length > 65535) {
+            throw new Error(`Binary too long: ${bin.length} bytes (max: 65535)`);
+        }
+        this.write_uint16(bin.length);
+        this.ensureCapacity(bin.length);
+        this.buffer.set(bin, this.position);
+        this.position += bin.length;
+    }
+
     public write_integer(value: number): void {
         if (!Number.isInteger(value)) {
             throw new Error(`write_integer: value must be an integer, got ${value}`);
@@ -320,6 +331,14 @@ export class ByteArray {
         return str;
     }
 
+    public read_binary(): Uint8Array {
+        const length = this.read_uint16();
+        this.checkAvailable(length);
+        const bin = this.buffer.slice(this.position, this.position + length);
+        this.position += length;
+        return bin;
+    }
+
     public read_integer(): number {
         const tag = this.read_uint8();
         switch (tag) {
@@ -366,6 +385,33 @@ export class ByteArray {
             list[i] = reader();
         }
         return list;
+    }
+
+    public write_map<K, V>(map: Map<K, V> | null | undefined, writeKey: (k: K) => void, writeVal: (v: V) => void): void {
+        if (!map) {
+            this.write_uint16(0);
+            return;
+        }
+        const length = map.size;
+        if (length > 65535) {
+            throw new Error(`Map too long: ${length} (max: 65535)`);
+        }
+        this.write_uint16(length);
+        for (const [k, v] of map) {
+            writeKey(k);
+            writeVal(v);
+        }
+    }
+
+    public read_map<K, V>(readKey: () => K, readVal: () => V): Map<K, V> {
+        const length = this.read_uint16();
+        const map = new Map<K, V>();
+        for (let i = 0; i < length; i++) {
+            const k = readKey();
+            const v = readVal();
+            map.set(k, v);
+        }
+        return map;
     }
 
     public getBytes(): Uint8Array {

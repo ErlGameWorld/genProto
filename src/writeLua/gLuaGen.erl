@@ -4,49 +4,58 @@
    genLua/4
 ]).
 
+spellMtHead(MsgName) ->
+   <<MsgName/binary, "_mt = {}\n", MsgName/binary, "_mt.__index = ", MsgName/binary, "_mt\n\n">>.
+
 spellFunHead(MsgName, MsgId) ->
-   <<"function ", MsgName/binary, "()\n\tlocal tb = {}\n\ttb.msgId =", (integer_to_binary(MsgId))/binary, "\n">>.
+   <<"function ", MsgName/binary, "()\n\treturn setmetatable({\n\t\tmsgId = ", (integer_to_binary(MsgId))/binary, ",\n">>.
 
 spellMember(FieldList) ->
    <<<<(gLuaField:builtMemberStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>.
 
-spellEncode(FieldList) ->
-   EnHead = <<"\n\ttb.encode = function(byteArray)\n">>,
+spellFunEnd(MsgName) ->
+   <<"\t}, ", MsgName/binary, "_mt)\nend\n\n">>.
+
+spellEncode(MsgName, FieldList) ->
+   EnHead = <<"function ", MsgName/binary, "_mt:encode(byteArray)\n">>,
    EnBody = <<<<(gLuaField:builtEncodeStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>,
-   EnEnd = <<"\t\treturn byteArray.getBytes()\n\tend\n\n">>,
+   EnEnd = <<"\treturn byteArray\nend\n\n">>,
    <<EnHead/binary, EnBody/binary, EnEnd/binary>>.
 
-spellDecode(FieldList) ->
-   EnHead = <<"\ttb.decode = function(byteArray)\n">>,
-   EnBody = <<<<(gLuaField:builtDecodeStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>,
-   EnEnd = <<"\tend\n\n">>,
-   <<EnHead/binary, EnBody/binary, EnEnd/binary>>.
+spellDecode(MsgName, FieldList) ->
+   DeHead = <<"function ", MsgName/binary, "_mt:decode(byteArray)\n">>,
+   DeBody = <<<<(gLuaField:builtDecodeStr(OneTypeName))/binary>> || OneTypeName <- FieldList>>,
+   DeEnd = <<"end\n\n">>,
+   <<DeHead/binary, DeBody/binary, DeEnd/binary>>.
 
-spellBuild(MsgId) ->
-   <<"\ttb.build = function(byteArray)\n\t\tbyteArray.setBytes({})\n\t\tbyteArray.write_uint16(", (integer_to_binary(MsgId))/binary, ")\n\t\treturn tb.encode(byteArray)\n\tend\n\n">>.
-
-spellEnd() ->
-   <<"\treturn tb\nend\n\n">>.
+spellBuild(MsgName, MsgId) ->
+   <<"function ", MsgName/binary, "_mt:build(byteArray)\n",
+     "\tbyteArray.reset()\n",
+     "\tbyteArray.write_uint16(", (integer_to_binary(MsgId))/binary, ")\n",
+     "\tself:encode(byteArray)\n",
+     "\treturn byteArray.getBytes()\n",
+     "end\n\n">>.
 
 spellMsgName(MsgId, MsgName) ->
    <<"\t[", (integer_to_binary(MsgId))/binary, "] = \"", MsgName/binary, "\",\n">>.
 
 genLua(SortedSProtoList, _SortedErrList, LuaDir, _) ->
+   ok = write_byte_array(LuaDir),
    FunSpell =
       fun({MsgName, MsgId, FieldList}, {TableBinAcc, MsgNameBinAcc}) ->
+         Mt = spellMtHead(MsgName),
          H = spellFunHead(MsgName, MsgId),
          M = spellMember(FieldList),
-         E = spellEncode(FieldList),
-         D = spellDecode(FieldList),
-         B = spellBuild(MsgId),
-         End = spellEnd(),
+         FE = spellFunEnd(MsgName),
+         E = spellEncode(MsgName, FieldList),
+         D = spellDecode(MsgName, FieldList),
+         B = spellBuild(MsgName, MsgId),
          MsgNameBin = spellMsgName(MsgId, MsgName),
-         {<<TableBinAcc/binary, H/binary, M/binary, E/binary, D/binary, B/binary, End/binary>>, <<MsgNameBinAcc/binary, MsgNameBin/binary>>}
+         {<<TableBinAcc/binary, Mt/binary, H/binary, M/binary, FE/binary, E/binary, D/binary, B/binary>>, <<MsgNameBinAcc/binary, MsgNameBin/binary>>}
       end,
    {LastTableBinAcc, MsgNameBody} = lists:foldl(FunSpell, {<<>>, <<>>}, SortedSProtoList),
    LastMsgNameBody = <<"ProtoMsgName =\n{\n", MsgNameBody/binary, "}">>,
 
-   %% todo error code
    LuaFilename = do_write_lua(LuaDir, protoMsg, LastTableBinAcc),
    MsgNameFile = do_write_lua(LuaDir, protoName, LastMsgNameBody),
 
@@ -63,3 +72,22 @@ do_write_lua(OutDir, Mod, BinStr) ->
          io:format("write to lua file error:~p ~n", [_Ret])
    end,
    Filename.
+
+write_byte_array(LuaDir) ->
+   case file:read_file(byte_array_template_path()) of
+      {ok, Bin} ->
+         Dst = filename:join([LuaDir, "ByteArray.lua"]),
+         file:write_file(Dst, Bin);
+      {error, Reason} ->
+         io:format("warning: skip ByteArray.lua (~p)~n", [Reason]),
+         ok
+   end.
+
+byte_array_template_path() ->
+   filename:join([repo_root(), "src", "writeLua", "gLuaCode.lua"]).
+
+repo_root() ->
+   Script = escript:script_name(),
+   filename:absname(
+      filename:join([filename:dirname(Script), "..", "..", ".."])
+   ).

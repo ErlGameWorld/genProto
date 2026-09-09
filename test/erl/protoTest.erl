@@ -92,7 +92,7 @@ tt4(N, Bin) ->
    tt4(N - 1, Bin).
 
 test1() ->
-   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tbool{bool = true}))).
+   protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tbool{flag = true}))).
 
 test21() ->
    protoMsg:decode(iolist_to_binary(protoMsg:encodeIol(#tint8{int1 = 123, int2 = -22}))).
@@ -169,15 +169,15 @@ test9() ->
 
 allType() ->
    AllType = #allType{
-      bool = false
-      , int8 = -66
-      , uint8 = 66
-      , int16 = -666
-      , uint16 = 666
-      , int32 = -66666
-      , uint32 = 66666
-      , int64 = -5294967296
-      , uint64 = 5294967296
+      flag = false
+      , v8 = -66
+      , uv8 = 66
+      , v16 = -666
+      , uv16 = 666
+      , v32 = -66666
+      , uv32 = 66666
+      , v64 = -5294967296
+      , uv64 = 5294967296
       , inte8 = -88
       , uinte8 = 88
       , inte16 = -8888
@@ -196,8 +196,8 @@ allType() ->
       , unum64 = 9999999999
       , numfloat = 999999.99999
       , numdouble = 9999999999.99999
-      , float = 123456.789321
-      , double = 4300000000.789321
+      , f32 = 123456.789321
+      , f64 = 4300000000.789321
       , string1 = "this is a test!!!!"
       , string2 = "这是一个测试， 等会看结果~！！！"
       , lbool = [true, false, true, false]
@@ -234,15 +234,15 @@ tall1(0) ->
    ok;
 tall1(N) ->
    AllType = #allType{
-      bool = false
-      , int8 = -66
-      , uint8 = 66
-      , int16 = -666
-      , uint16 = 666
-      , int32 = -66666
-      , uint32 = 66666
-      , int64 = -5294967296
-      , uint64 = 5294967296
+      flag = false
+      , v8 = -66
+      , uv8 = 66
+      , v16 = -666
+      , uv16 = 666
+      , v32 = -66666
+      , uv32 = 66666
+      , v64 = -5294967296
+      , uv64 = 5294967296
       , inte8 = -88
       , uinte8 = 88
       , inte16 = -8888
@@ -261,8 +261,8 @@ tall1(N) ->
       , unum64 = 9999999999
       , numfloat = 999999.99999
       , numdouble = 9999999999.99999
-      , float = 123456.789321
-      , double = 4300000000.789321
+      , f32 = 123456.789321
+      , f64 = 4300000000.789321
       , string1 = "this is a test!!!!"
       , string2 = "这是一个测试， 等会看结果~！！！"
       , lbool = [true, false, true, false]
@@ -296,15 +296,15 @@ tall1(N) ->
 
 tall(N) ->
    AllType = #allType{
-      bool = false
-      , int8 = -66
-      , uint8 = 66
-      , int16 = -666
-      , uint16 = 666
-      , int32 = -66666
-      , uint32 = 66666
-      , int64 = -5294967296
-      , uint64 = 5294967296
+      flag = false
+      , v8 = -66
+      , uv8 = 66
+      , v16 = -666
+      , uv16 = 666
+      , v32 = -66666
+      , uv32 = 66666
+      , v64 = -5294967296
+      , uv64 = 5294967296
       , inte8 = -88
       , uinte8 = 88
       , inte16 = -8888
@@ -323,8 +323,8 @@ tall(N) ->
       , unum64 = 9999999999
       , numfloat = 999999.99999
       , numdouble = 9999999999.99999
-      , float = 123456.789321
-      , double = 4300000000.789321
+      , f32 = 123456.789321
+      , f64 = 4300000000.789321
       , string1 = "this is a test!!!!"
       , string2 = "这是一个测试， 等会看结果~！！！"
       , lbool = [true, false, true, false]

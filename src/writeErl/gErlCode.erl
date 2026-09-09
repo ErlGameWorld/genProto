@@ -1,7 +1,7 @@
 -module(gErlCode).
 
 -compile([export_all, nowarn_unused_function, nowarn_export_all]).
--export([encodeIol/1, encodeBin/1, encodeIol/2, subEncode/1, subEncode/2, decode/1, decodeBin/2]).
+-export([encodeIol/1, encodeBin/1, encodeIol/2, subEncode/1, subEncode/2, decode/1, decodeBin/2, getMsgName/1]).
 
 -define(min8, -128).
 -define(max8, 127).
@@ -28,6 +28,7 @@
 -define(integer(V), (integer(V))).
 -define(number(V), (number(V))).
 -define(string(V), (string(V))).
+-define(binary(V), (binary(V))).
 -define(float(V), <<V:32/big-float>>).
 -define(double(V), <<V:64/big-float>>).
 -define(bool(V), (case V of true -> <<1:8>>; _ -> <<0:8>> end)).
@@ -46,6 +47,7 @@
 -define(list_integer(List), [<<(listLen(List)):16/big>>, [integer(V) || V <- List]]).
 -define(list_number(List), [<<(listLen(List)):16/big>>, [number(V) || V <- List]]).
 -define(list_string(List), [<<(listLen(List)):16/big>>, [string(V) || V <- List]]).
+-define(list_binary(List), [<<(listLen(List)):16/big>>, [binary(V) || V <- List]]).
 -define(list_record(List), [<<(listLen(List)):16/big>>, [subEncode(V) || V <- List]]).
 
 listLen(List) ->
@@ -128,6 +130,19 @@ string(Str) ->
          end
    end.
 
+binary(Bin) when is_binary(Bin) ->
+   BinLen = byte_size(Bin),
+   case BinLen > 65535 of
+      true ->
+         throw({binary_too_long, BinLen});
+      _ ->
+         [<<BinLen:16/big>>, Bin]
+   end;
+binary(Bin) when is_list(Bin) ->
+   binary(erlang:iolist_to_binary(Bin));
+binary(Bin) ->
+   throw({not_a_binary, Bin}).
+
 decode(Bin) ->
    <<MsgId:16/big, MsgBin/binary>> = Bin,
    decodeBin(MsgId, MsgBin).
@@ -195,6 +210,8 @@ decodeBin(_, _) ->
    ok.
 decodeRec(_, _) ->
    ok.
+getMsgName(_) ->
+   undefined.
 
 
 

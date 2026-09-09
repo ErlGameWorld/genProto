@@ -31,7 +31,7 @@ union{
 }
 
 tbool{
-    bool bool;
+    bool flag;
 }
 
 tint8{
@@ -183,15 +183,15 @@ tlistunion{
 
 %% 测试所有类型数据
 allType{
-    bool bool;
-    int8 int8;
-    uint8 uint8;
-    int16 int16;
-    uint16 uint16;
-    int32 int32;
-    uint32 uint32;
-    int64 int64;
-    uint64 uint64;
+    bool flag;
+    int8 v8;
+    uint8 uv8;
+    int16 v16;
+    uint16 uv16;
+    int32 v32;
+    uint32 uv32;
+    int64 v64;
+    uint64 uv64;
     integer inte8;
     integer uinte8;
     integer inte16;
@@ -210,11 +210,11 @@ allType{
     number unum64;
     number numfloat;
     number numdouble;
-    float float;
-    double double;
+    float f32;
+    double f64;
     string string1;             //英文
     string string2;             //汉字
-    union union;
+    union uval;
     list[bool] lbool;
     list[int8] lint8;
     list[uint8] luint8;
@@ -241,4 +241,31 @@ allType{
 }
 
 testnull {
+}
+
+%% binary / map / oneof 示例
+tbinary {
+	binary data;
+	list[binary] chunks;
+}
+
+tmap {
+	map<string,int32> attrs;
+	map<int32,string> names;
+	map<string,phoneNumber> phones;
+}
+
+toneof {
+	int32 reason;
+	oneof item {
+		int32 gold;
+		string coupon;
+		phoneNumber phone;
+	}
+	oneof item2 {
+    	int32 gold;
+    	string coupon;
+    	phoneNumber phone;
+    }
+	string tip;
 }

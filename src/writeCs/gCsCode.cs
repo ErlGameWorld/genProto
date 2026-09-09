@@ -37,6 +37,7 @@ namespace GenProto
             Float = 0x10,
             Double = 0x11,
             String = 0x12,
+            Binary = 0x13,
         }
 
         public static BasicTypeEnum JudgeType<T>(T value)
@@ -102,6 +103,14 @@ namespace GenProto
                     var bytes = binaryWriter.Encoding.GetBytes(stringValue);
                     binaryWriter.Write(bytes);
                     break;
+                case byte[] binaryValue:
+                    var binLen = (ushort)(binaryValue?.Length ?? 0);
+                    binaryWriter.Write(binLen);
+                    if (binaryValue != null && binLen > 0)
+                    {
+                        binaryWriter.Write(binaryValue);
+                    }
+                    break;
                 default:
                 {
                     switch (value)
@@ -115,7 +124,7 @@ namespace GenProto
                         default:
                             if (value != null)
                             {
-                                throw new InvalidOperationException($"unexpect type: {value.GetType().FullName}");
+                                throw new InvalidOperationException($\"unexpect type: {value.GetType().FullName}\");
                             }
 
                             break;
@@ -201,16 +210,56 @@ namespace GenProto
             value = binaryReader.Encoding.GetString(bytes, 0, bytes.Length);
         }
 
+        public static void ReadValue(this EndianBinaryReader binaryReader, out byte[] value)
+        {
+            var bytesLength = binaryReader.ReadUInt16();
+            value = binaryReader.ReadBytes(bytesLength);
+        }
+
         public static void ReadValue<T>(this EndianBinaryReader binaryReader, out T value) where T : new()
         {
             value = default;
             value = new T();
             if (value is not IDeserialize<T> deserialize)
             {
-                throw new InvalidOperationException($"error type: {typeof(T).FullName}");
+                throw new InvalidOperationException($\"error type: {typeof(T).FullName}\");
             }
 
             deserialize.Deserialize(binaryReader);
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out List<string> outList, BasicTypeEnum basicTypeEnum)
+        {
+            outList = null;
+            var length = binaryReader.ReadUInt16();
+            if (length <= 0)
+            {
+                return;
+            }
+
+            outList = new List<string>(length);
+            for (var idx = 0; idx < length; idx++)
+            {
+                binaryReader.ReadValue(out string item);
+                outList.Add(item);
+            }
+        }
+
+        public static void ReadValue(this EndianBinaryReader binaryReader, out List<byte[]> outList, BasicTypeEnum basicTypeEnum)
+        {
+            outList = null;
+            var length = binaryReader.ReadUInt16();
+            if (length <= 0)
+            {
+                return;
+            }
+
+            outList = new List<byte[]>(length);
+            for (var idx = 0; idx < length; idx++)
+            {
+                binaryReader.ReadValue(out byte[] item);
+                outList.Add(item);
+            }
         }
 
         public static void ReadValue<T>(this EndianBinaryReader binaryReader, out List<T> outList, BasicTypeEnum basicTypeEnum) where T : new()
@@ -287,6 +336,11 @@ namespace GenProto
                         list ??= new List<string>(length);
                         var stringValue = binaryReader.ReadString();
                         list.Add(stringValue);
+                        break;
+                    case BasicTypeEnum.Binary:
+                        list ??= new List<byte[]>(length);
+                        var binLen = binaryReader.ReadUInt16();
+                        list.Add(binaryReader.ReadBytes(binLen));
                         break;
                     case BasicTypeEnum.Custom:
                         list ??= new List<T>(length);

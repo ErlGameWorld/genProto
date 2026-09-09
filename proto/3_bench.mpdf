@@ -1,0 +1,136 @@
+%% ============================================================================
+%% 3_bench.mpdf - cross-language encode/decode performance payloads (MsgId 3001+)
+%%
+%% Categories (bench_heavy.* in test/{erl,ts,cs,lua} + gpb):
+%%   scalar  - dense fixed/variable scalars
+%%   list    - large repeated scalars + records
+%%   map     - maps of scalar / record values
+%%   oneof   - multiple oneof fields
+%%   nested  - nested optional records
+%%   heavy   - mixed comprehensive payload (original)
+%%
+%% Reuses phoneNumber (0_test) and comboLeaf (2_combo).
+%% Avoids nested list[list] / map-of-map / oneof-map (codegen limits).
+%% ============================================================================
+
+%% --- helper -------------------------------------------------------------------
+
+benchLeaf {
+	int32 id;
+	string tag;
+	binary blob;
+}
+
+%% --- category: scalar ---------------------------------------------------------
+%% Many scalar fields of different widths / string / binary.
+
+tBenchScalar {
+	int32 a1;
+	int32 a2;
+	int32 a3;
+	int32 a4;
+	int32 a5;
+	int32 a6;
+	int32 a7;
+	int32 a8;
+	int64 b1;
+	int64 b2;
+	int64 b3;
+	int64 b4;
+	string s1;
+	string s2;
+	string s3;
+	string s4;
+	binary p1;
+	binary p2;
+	binary p3;
+	binary p4;
+	bool f1;
+	bool f2;
+	float f3;
+	double f4;
+}
+
+%% --- category: list -----------------------------------------------------------
+%% Large lists: int32 / string / binary / record.
+
+tBenchList {
+	list[int32] scores;
+	list[string] labels;
+	list[binary] chunks;
+	list[benchLeaf] items;
+	list[comboLeaf] extras;
+}
+
+%% --- category: map ------------------------------------------------------------
+%% Maps: string->int32, int32->string, string->record.
+
+tBenchMap {
+	map<string,int32> attrs;
+	map<int32,string> rev;
+	map<string,benchLeaf> lookup;
+	map<string,phoneNumber> phones;
+	map<string,string> tags;
+}
+
+%% --- category: oneof ----------------------------------------------------------
+%% Several oneof fields with scalar / string / record branches.
+
+tBenchOneof {
+	int32 seq;
+	oneof reward {
+		int32 gold;
+		string coupon;
+		benchLeaf leaf;
+		phoneNumber phone;
+	}
+	oneof meta {
+		int32 code;
+		string note;
+	}
+	oneof payload {
+		binary raw;
+		string text;
+		benchLeaf blob;
+	}
+	string tip;
+}
+
+%% --- category: nested ---------------------------------------------------------
+%% Nested optional records + lists of nests.
+
+tBenchNested {
+	benchLeaf root;
+	phoneNumber contact;
+	comboLeaf leaf;
+	list[benchLeaf] children;
+	list[phoneNumber] contacts;
+}
+
+%% --- category: heavy (comprehensive mix) --------------------------------------
+
+tBenchHeavy {
+	int32 seq;
+	string title;
+	benchLeaf root;
+	list[benchLeaf] items;
+	list[int32] scores;
+	list[string] labels;
+	list[binary] chunks;
+	map<string,int32> attrs;
+	map<int32,string> rev;
+	map<string,benchLeaf> lookup;
+	map<string,phoneNumber> phones;
+	oneof reward {
+		int32 gold;
+		string coupon;
+		benchLeaf leaf;
+		phoneNumber phone;
+	}
+	oneof meta {
+		int32 code;
+		string note;
+	}
+	binary payload;
+	list[comboLeaf] extras;
+}
